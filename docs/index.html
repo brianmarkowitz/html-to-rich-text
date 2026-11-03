@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-BAeu6Bo/XFOSU7eMARpFbYqXh1I0kLHR34+upQPld7U='; style-src 'sha256-5zEWuR250ZDjRUiKuBAug6aZFxdlDMkIWn+aAB6V4UA='; connect-src 'none'; img-src https://hits.sh/brianmarkowitz.github.io/story-to-rich-text/visits-20261103-r1.svg; font-src 'none'; media-src 'none'; object-src 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; manifest-src 'none'; form-action 'none'; base-uri 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-1IPbbxYB2HJAuB4QNI9tPArzjtKR55Sc7S8EvDK690I='; style-src 'sha256-5zEWuR250ZDjRUiKuBAug6aZFxdlDMkIWn+aAB6V4UA='; connect-src 'none'; img-src https://hits.sh/brianmarkowitz.github.io/story-to-rich-text/visits-20261103-r1.svg; font-src 'none'; media-src 'none'; object-src 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; manifest-src 'none'; form-action 'none'; base-uri 'none'">
 <meta name="referrer" content="no-referrer">
 <meta name="description" content="Paste any text with inline HTML and typed line breaks and get clean, formatted text to copy or download. Your writing is formatted in your browser and never uploaded; the published page shows one hosted site-visits counter image.">
 <title>Text, Unwrapped</title>
@@ -1348,8 +1348,10 @@ with a little space</b> around them.`;
     say(`${name} is ready. Check your downloads.`, 'ok');
   }
 
+  const hasDraft = () => Boolean(source.value.trim()) && source.value !== EXAMPLE;
+
   function confirmReplace(message) {
-    return !source.value.trim() || window.confirm(message);
+    return !hasDraft() || window.confirm(message);
   }
 
   source.addEventListener('input', schedule);
@@ -1479,10 +1481,14 @@ with a little space</b> around them.`;
   showVisits();
 
   window.addEventListener('beforeunload', (e) => {
-    if (source.value.trim()) { e.preventDefault(); e.returnValue = ''; }
+    if (hasDraft()) { e.preventDefault(); e.returnValue = ''; }
   });
 
+  // Load the built-in sample after capturing the clean offline tool.
+  // Leave any text restored by the browser intact and avoid opening the keyboard.
+  if (!source.value.trim()) source.value = EXAMPLE;
   update();
+  if (source.value === EXAMPLE) say('Example text — replace it with yours to get started.');
 })();
 </script>
 </body>

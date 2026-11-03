@@ -33,7 +33,7 @@ try {
   await page.goto(origin + '/');
   const draft = 'SYNTHETIC_PRIVATE_DRAFT_SENTINEL_82164';
   await page.locator('#source').fill(`<center><b>${draft}</b></center>\n\nA second paragraph.`);
-  await page.locator('#preview strong').waitFor();
+  await page.getByText(draft, { exact: true }).waitFor();
   // A filename in a prior download status must not leak into the saved tool.
   const storyPending = page.waitForEvent('download', { timeout: 10000 });
   await page.locator('#moreSave > summary').click();
@@ -57,14 +57,14 @@ try {
   await context.setOffline(true);
   const offline = await context.newPage();
   await offline.goto(pathToFileURL(saved).href);
-  assert.equal(await offline.locator('#source').inputValue(), '');
-  assert.equal(await offline.locator('#preview').textContent(), '');
-  assert.equal(await offline.locator('#status').textContent(), '');
+  assert.match(await offline.locator('#source').inputValue(), /^<center><b>Weekend notes/);
+  assert.match(await offline.locator('#preview').textContent(), /Weekend notes/);
+  assert.match(await offline.locator('#status').textContent(), /Example text/);
   assert.equal(await offline.locator('#htmlMode').inputValue(), 'auto');
   assert.equal(await offline.locator('#adjust').evaluate(e => e.open), false);
   assert.equal(await offline.locator('#moreSave').evaluate(e => e.open), false);
   await offline.locator('#source').fill('Fresh <b>offline</b> text.\n\nNext paragraph.');
-  await offline.locator('#preview strong').waitFor();
+  await offline.locator('#preview strong').filter({ hasText: 'offline' }).waitFor();
   assert.equal(await offline.locator('#preview p').count(), 2);
   assert.equal(await offline.locator('#preview strong').textContent(), 'offline');
   // Saving the renamed tool again remains blank and independent of its draft.
@@ -75,7 +75,7 @@ try {
   assert.ok(!readFileSync(await again.path(), 'utf8').includes('Fresh <b>offline</b> text.'));
   assert.equal(await offline.locator('#visits').isVisible(), false, 'no counter in local copies');
   assert.deepEqual(external, [], 'no external requests from local or offline pages');
-  console.log('Hosted/offline tool download passed: blank copy, valid CSP, no draft or filename, no network; renamed offline copy converts and saves again.');
+  console.log('Hosted/offline tool download passed: clean example copy, valid CSP, no draft or filename, no network; renamed offline copy converts and saves again.');
   await context.close();
 } finally {
   if (browser) await browser.close();

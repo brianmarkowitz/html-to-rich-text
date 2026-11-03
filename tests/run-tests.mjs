@@ -403,15 +403,19 @@ await test('privacy banner states the conversion promise without overclaiming', 
     'Your writing stays on your device. No uploads or AI processing.');
   assert.ok(!/erase|no AI is used/i.test(appSource));
 });
-await test('starts empty with outputs disabled', async () => {
-  assert.equal(await page2.inputValue('#source'), '');
-  assert.equal(await page2.$eval('#preview', (e) => e.childNodes.length), 0);
-  for (const id of ['copyRichBtn', 'copyPlainBtn', 'rtfBtn', 'htmlBtn', 'txtBtn']) assert.ok(await page2.isDisabled('#' + id), id);
+await test('starts with the example, rendered preview and enabled outputs', async () => {
+  assert.match(await page2.inputValue('#source'), /^<center><b>Weekend notes<\/b><\/center>/);
+  assert.equal(await page2.$eval('#preview p', (e) => e.className), 'al-center');
+  assert.match(await page2.textContent('#preview'), /Weekend notes/);
+  assert.match(await page2.textContent('#status'), /Example text/);
+  for (const id of ['copyRichBtn', 'copyPlainBtn', 'rtfBtn', 'htmlBtn', 'txtBtn']) assert.ok(await page2.isEnabled('#' + id), id);
 });
-await test('example fills empty input without asking', async () => {
+await test('the unedited example can be cleared and reloaded without asking', async () => {
   let asked = false;
   const onDialog = (d) => { asked = true; d.dismiss(); };
   page2.on('dialog', onDialog);
+  await page2.click('#clearBtn');
+  assert.equal(await page2.inputValue('#source'), '');
   await page2.click('#exampleBtn');
   page2.off('dialog', onDialog);
   assert.equal(asked, false);
@@ -608,7 +612,7 @@ await test('source box turns off browser spelling, autocorrect and writing sugge
     corr: e.getAttribute('autocorrect'), cap: e.getAttribute('autocapitalize'), ws: e.getAttribute('writingsuggestions') }));
   assert.deepEqual(attrs, { spell: false, ac: 'off', corr: 'off', cap: 'off', ws: 'false' });
 });
-await test('offline tool stays blank after editing, including renamed local copies', async () => {
+await test('offline tool excludes drafts after editing, including renamed local copies', async () => {
   const link = await page2.$eval('a.save', (a) => ({ href: a.href, dl: a.getAttribute('download'), text: a.textContent }));
   assert.deepEqual(link, { href: appUrl, dl: 'text-unwrapped.html', text: 'Save this tool for offline use' });
   const renamed = join(work, 'my renamed copy.html');

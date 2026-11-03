@@ -1,7 +1,7 @@
 # Text, Unwrapped
 
 [Open Text, Unwrapped](https://brianmarkowitz.github.io/story-to-rich-text/).
-Paste any text (notes, letters, posts, chapters), check the preview, then **Copy formatted text** or **Download document**. No HTML knowledge or setup is needed.
+The page opens with a made-up example and its formatted preview. Clear it or replace it with any text (notes, letters, posts, chapters), check the preview, then **Copy formatted text** or **Download document**. No HTML knowledge or setup is needed.
 
 ## Automatic formatting
 
@@ -25,7 +25,7 @@ Untrusted HTML is read in an inert template. A new allowlisted DOM is built rath
 
 The app's Content Security Policy blocks outgoing connections (`connect-src 'none'`) and all other resources, permits only its own script/style by hash, and allows images only from the exact counter badge path. Browser spelling, autocorrect and writing suggestions are off in the source field.
 
-**Save this tool for offline use** captures a blank startup copy before typing. Saving it needs no network request and includes neither the later draft nor its filename. The saved file, `text-unwrapped.html`, works after renaming and reopening offline, with automatic settings and closed menus.
+**Save this tool for offline use** captures a clean startup copy before typing. Saving it needs no network request and includes neither the later draft nor its filename. The saved file, `text-unwrapped.html`, works after renaming and reopening offline, with the built-in example, automatic settings and closed menus.
 
 ## Development
 
