@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-NJA4R4gLNaLS9BIWD1GaF94yg2uumvS4yvUPJ3dQtNM='; style-src 'sha256-xUaVORrWT0k7F50EgDbZzosjnveItc7/ezwDlH0KHtA='; connect-src 'none'; img-src https://hits.sh/brianmarkowitz.github.io/story-to-rich-text/visits-20261103-r1.svg; font-src 'none'; media-src 'none'; object-src 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; manifest-src 'none'; form-action 'none'; base-uri 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-UBE+oZUSDZXkoGoFp6JGyuEvy6zKRN7L8HH4zzl4eJQ='; style-src 'sha256-0RLy84XjmuRgmiz8zfpjvsjzj8TBj2PyFR/DFc4d7VM='; connect-src 'none'; img-src https://hits.sh/brianmarkowitz.github.io/story-to-rich-text/visits-20261103-r1.svg; font-src 'none'; media-src 'none'; object-src 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; manifest-src 'none'; form-action 'none'; base-uri 'none'">
 <meta name="referrer" content="no-referrer">
 <meta name="description" content="Paste any text with inline HTML and typed line breaks and get clean, formatted text to copy or download. Your writing is formatted in your browser and never uploaded; the published page shows one hosted site-visits counter image.">
 <title>Text, Unwrapped</title>
@@ -318,7 +318,20 @@ textarea { min-height: 0; height: 100%; resize: none; overflow: auto; padding: 1
   button.primary:hover:not(:disabled), button.sunny:hover:not(:disabled),
   button.primary:active:not(:disabled), button.sunny:active:not(:disabled) { transform: none; }
 }
+[hidden] { display: none !important; }
+.file-workspace { flex: 1; min-height: 0; overflow: auto; }
+.file-drop { border: 2px dashed var(--line-strong); border-radius: var(--radius); padding: 18px; text-align: center; background: var(--sage); }
+.file-drop h2 { margin: 0 0 4px; font: 700 1.2rem var(--display); }
+.file-drop p { margin: 6px 0; font-size: 0.85rem; }
+.file-toolbar { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.file-results { list-style: none; padding: 0; margin: 12px 0; }
+.file-results li { padding: 12px; margin-bottom: 8px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; }
+.file-name { display: block; overflow-wrap: anywhere; margin-bottom: 6px; }
+.file-links { display: flex; flex-wrap: wrap; gap: 8px; }
+.file-error { color: var(--err-ink); }
+body.file-drag main { outline: 3px dashed var(--accent); outline-offset: -3px; }
 @media print {
+  .file-workspace { display: none !important; }
   body { display: block; height: auto; overflow: visible; padding: 0; background: #fff; }
   body > *:not(main), .settings, .view-switch, .source-panel, .panel-head, .panel-foot, .action-bar { display: none !important; }
   main.wrap, .panels, .panel, .panels .preview-panel { display: block !important; height: auto; min-height: 0; border: 0; padding: 0; margin: 0; max-width: none; background: #fff; }
@@ -395,6 +408,19 @@ textarea { min-height: 0; height: 100%; resize: none; overflow: auto; padding: 1
 </header>
 
 <main class="wrap">
+  <section class="file-workspace" id="fileWorkspace" aria-label="Convert HTML files" hidden>
+    <div class="file-toolbar"><button type="button" id="backToEditor">Back to text editor</button><button type="button" id="clearFiles">Clear list</button></div>
+    <div class="file-drop" id="fileDrop">
+      <h2>Drop HTML files here</h2>
+      <p>Get formatted documents without opening a preview.</p>
+      <button type="button" class="primary" id="chooseFiles">Choose HTML files</button>
+      <p>.html or .htm · up to 5 MB each · 20 files at a time</p>
+      <p>Converted on your device. Download links work only in this tab.</p>
+    </div>
+    <p id="fileStatus" role="status" aria-live="polite"></p>
+    <ul class="file-results" id="fileResults" aria-label="Converted files"></ul>
+  </section>
+  <input type="file" id="fileInput" aria-label="Choose HTML files" accept=".html,.htm,text/html" multiple hidden>
   <div class="view-switch" role="group" aria-label="Workspace view">
     <button type="button" id="showSourceBtn" aria-pressed="true" aria-controls="sourcePanel">Edit text</button>
     <button type="button" id="showPreviewBtn" aria-pressed="false" aria-controls="previewPanel">See preview</button>
@@ -404,9 +430,10 @@ textarea { min-height: 0; height: 100%; resize: none; overflow: auto; padding: 1
       <div class="panel-head">
         <div>
           <label class="h2" id="sourceLabel" for="source">Your HTML or text</label>
-          <p class="hint" id="sourceHint">Click the example to replace it with your text.</p>
+          <p class="hint" id="sourceHint">Click to replace the example, or drop HTML files anywhere.</p>
         </div>
         <div class="row">
+          <button type="button" id="openFiles">Convert files</button>
           <button type="button" id="clearBtn" class="quiet">Clear</button>
         </div>
       </div>
@@ -1340,6 +1367,115 @@ with a little space</b> around them.`;
     setTimeout(() => URL.revokeObjectURL(url), 10000);
     say(`${name} is ready. Check your downloads.`, 'ok');
   }
+
+  // File content is parsed inertly and converted locally, never inserted into the editor.
+  const fileURLs = new Set();
+  let processingFiles = false;
+  function fileView(active) {
+    $('fileWorkspace').hidden = !active;
+    $('panels').hidden = active;
+    document.querySelector('.view-switch').hidden = active;
+    document.querySelector('.action-bar').hidden = active;
+  }
+  $('openFiles').addEventListener('click', () => { fileView(true); $('chooseFiles').focus(); });
+  $('backToEditor').addEventListener('click', () => { fileView(false); $('openFiles').focus(); });
+  $('chooseFiles').addEventListener('click', () => $('fileInput').click());
+  $('clearFiles').addEventListener('click', () => {
+    for (const url of fileURLs) URL.revokeObjectURL(url);
+    fileURLs.clear();
+    $('fileResults').replaceChildren();
+    $('fileStatus').textContent = '';
+  });
+  async function processFiles(files) {
+    if (!files.length || processingFiles) return;
+    fileView(true);
+    const remaining = 20 - $('fileResults').children.length;
+    if (remaining <= 0) { $('fileStatus').textContent = 'Clear the list before adding more files.'; return; }
+    processingFiles = true;
+    $('clearFiles').disabled = $('chooseFiles').disabled = true;
+    const selected = Array.from(files).slice(0, remaining);
+    const settings = preferences();
+    let completed = 0;
+    let succeeded = 0;
+    try {
+      for (const file of selected) {
+        const row = document.createElement('li');
+        const name = document.createElement('strong');
+        name.className = 'file-name';
+        name.textContent = file.name;
+        row.append(name);
+        $('fileResults').append(row);
+        $('fileStatus').textContent = `Converting ${++completed} of ${selected.length}…`;
+        try {
+          if (!/\.html?$/i.test(file.name)) throw new Error('Choose an .html or .htm file.');
+          if (file.size > 5 * 1024 * 1024) throw new Error('This file is larger than 5 MB.');
+          const buffer = await file.arrayBuffer();
+          const bytes = new Uint8Array(buffer);
+          const encoding = bytes[0] === 255 && bytes[1] === 254 ? 'utf-16le' : bytes[0] === 254 && bytes[1] === 255 ? 'utf-16be' : 'utf-8';
+          let input;
+          try { input = new TextDecoder(encoding, { fatal: true }).decode(buffer); }
+          catch { throw new Error('Save this HTML file with UTF-8 encoding, then try again.'); }
+          const options = resolveOptions(input, settings);
+          const converted = convert(input, options);
+          if (!renderPlain(converted).trim()) throw new Error('No readable text found in this file.');
+          const base = file.name.replace(/\.html?$/i, '').replace(/[\/\\:\x00-\x1f]/g, '-').slice(0, 150) || 'converted';
+          const links = document.createElement('div');
+          links.className = 'file-links';
+          for (const [ext, mime, label, content] of [
+            ['rtf', 'application/rtf', 'Download document', renderRTF(converted, options)],
+            ['html', 'text/html;charset=utf-8', 'Download HTML', renderStandaloneHTML(converted, options)],
+            ['txt', 'text/plain;charset=utf-8', 'Download text', renderPlain(converted)]
+          ]) {
+            const link = document.createElement('a');
+            link.className = 'save';
+            link.textContent = label;
+            link.download = `${base}-formatted.${ext}`;
+            link.href = URL.createObjectURL(new Blob([content], { type: mime }));
+            fileURLs.add(link.href);
+            links.append(link);
+          }
+          row.append(links);
+          succeeded++;
+        } catch (error) {
+          const message = document.createElement('span');
+          message.className = 'file-error';
+          message.textContent = error.message || 'Could not read this file. Please try again.';
+          row.append(message);
+        }
+        // Give the browser a chance to paint between files.
+        await new Promise(resolve => setTimeout(resolve, 0));
+      }
+      $('fileStatus').textContent = `Finished. ${succeeded} of ${selected.length} files ready to download.` + (files.length > remaining ? ' Only the first ' + remaining + ' files were processed. Clear the list to add more.' : '') + ' Formatting settings apply when files are added.';
+    } finally {
+      processingFiles = false;
+      $('clearFiles').disabled = $('chooseFiles').disabled = false;
+    }
+  }
+  $('fileInput').addEventListener('change', async () => {
+    const files = Array.from($('fileInput').files);
+    $('fileInput').value = '';
+    await processFiles(files);
+  });
+  let dragDepth = 0;
+  const isFileDrag = e => Array.from(e.dataTransfer?.types || []).includes('Files');
+  document.addEventListener('dragenter', e => {
+    if (!isFileDrag(e)) return;
+    e.preventDefault(); dragDepth++; document.body.classList.add('file-drag');
+  });
+  document.addEventListener('dragover', e => {
+    if (!isFileDrag(e)) return;
+    e.preventDefault(); e.dataTransfer.dropEffect = processingFiles ? 'none' : 'copy';
+  });
+  document.addEventListener('dragleave', e => {
+    if (!isFileDrag(e)) return;
+    if (--dragDepth <= 0) { dragDepth = 0; document.body.classList.remove('file-drag'); }
+  });
+  document.addEventListener('drop', e => {
+    if (!isFileDrag(e)) return;
+    e.preventDefault(); dragDepth = 0; document.body.classList.remove('file-drag');
+    if (processingFiles) { $('fileStatus').textContent = 'Please wait for the current files to finish, then drop again.'; return; }
+    processFiles(Array.from(e.dataTransfer.files));
+  });
 
   const hasDraft = () => Boolean(source.value.trim()) && !(exampleActive && source.value === EXAMPLE);
 

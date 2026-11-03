@@ -43,3 +43,7 @@ Tests use an installed local or global Playwright with Chromium, synthetic text 
 Automatic detection cannot know an author's intention for every line break. It keeps uncertain breaks; optional adjustments remain available. Tables flatten to paragraphs, formatting inside preformatted blocks becomes text, and custom fonts/colours/sizes are omitted. Clipboard appearance also depends on the receiving editor.
 
 The code was developed and reviewed with AI assistance. No AI processes your text when the tool is used.
+
+### HTML files
+
+Choose **Convert files** or drop `.html` / `.htm` files anywhere on the page. Each file gets local download links for RTF, cleaned HTML and plain text, without displaying its contents or replacing an editor draft. Up to 20 files per list, 5 MB each; UTF-8 and BOM-marked UTF-16 are supported. Settings are captured when files are added. Clear the list to release generated files; links exist only in the current tab. Original files are never modified or uploaded.

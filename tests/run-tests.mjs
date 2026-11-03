@@ -629,7 +629,7 @@ await test('offline tool excludes drafts after editing, including renamed local 
 });
 await test('form controls are labelled and the page has no horizontal scroll on a phone', async () => {
   const unlabeled = await page2.evaluate(() => [...document.querySelectorAll('select, textarea, input')]
-    .filter((e) => !e.labels || !e.labels.length).map((e) => e.id));
+    .filter((e) => (!e.labels || !e.labels.length) && !e.getAttribute('aria-label')).map((e) => e.id));
   assert.deepEqual(unlabeled, []);
   const nameless = await page2.evaluate(() => [...document.querySelectorAll('button')].filter((b) => !b.textContent.trim()).length);
   assert.equal(nameless, 0);
@@ -945,6 +945,76 @@ await test('source has no external resources, storage, network or analytics code
   assert.equal((appSource.match(/\.innerHTML\s*=/g) || []).length, 1, 'only the inert template parse uses innerHTML');
   assert.match(appSource, /tpl\.innerHTML = source;/);
 });
+await test('HTML file picker creates safe local downloads and preserves the editor', async () => {
+  const p = await openApp();
+  await p.locator('#source').fill('Keep my editor draft.');
+  const malicious = '<!doctype html><html><head><title>Not body text</title></head><body><h1>Café notes</h1><p>Hello <b>world</b>.</p><script>window.FILE_EXECUTED=true</script><img src="https://example.com/private"><p>Second paragraph.</p></body></html>';
+  const before = requests.length;
+  await p.locator('#fileInput').setInputFiles([
+    { name: 'Café notes.html', mimeType: 'text/html', buffer: Buffer.from(malicious) },
+    { name: 'second.HTM', mimeType: 'text/html', buffer: Buffer.from('First\n\n<i>Second</i>') }
+  ]);
+  await p.waitForFunction(() => document.querySelector('#fileStatus').textContent.startsWith('Finished.'));
+  assert.equal(await p.locator('#fileResults li').count(), 2);
+  assert.equal(await p.locator('#fileResults a').count(), 6);
+  assert.equal(await p.locator('#source').inputValue(), 'Keep my editor draft.');
+  assert.equal(await p.locator('#panels').isVisible(), false);
+  assert.equal(await p.evaluate(() => window.FILE_EXECUTED), undefined);
+  const row = p.locator('#fileResults li').first();
+  for (const [i, ext] of [[0, 'rtf'], [1, 'html'], [2, 'txt']]) {
+    const pending = p.waitForEvent('download');
+    await row.locator('a').nth(i).click();
+    const d = await pending;
+    assert.equal(d.suggestedFilename(), `Café notes-formatted.${ext}`);
+    const content = readFileSync(await d.path(), 'utf8');
+    assert.ok(!content.includes('FILE_EXECUTED') && !content.includes('example.com/private'));
+    assert.ok(content.includes('world') && content.includes('Second paragraph'));
+    assert.ok(!content.includes('Not body text'));
+    if (ext === 'rtf') assert.ok(content.startsWith('{\\rtf1'));
+    if (ext === 'html') assert.match(content, /<strong>world<\/strong>/);
+  }
+  const savePending = p.waitForEvent('download');
+  await p.locator('#saveTool').click();
+  const saved = readFileSync(await (await savePending).path(), 'utf8');
+  assert.ok(!saved.includes('Café notes') && !saved.includes('Keep my editor draft.'));
+  assert.equal(requests.length, before, 'file conversion and downloads use no network');
+  await p.locator('#backToEditor').click();
+  assert.equal(await p.locator('#source').inputValue(), 'Keep my editor draft.');
+  await p.locator('#openFiles').click();
+  await p.locator('#clearFiles').click();
+  assert.equal(await p.locator('#fileResults li').count(), 0);
+  await p.close();
+});
+await test('file drops, invalid files, empty content, size limits and UTF-16 are handled locally', async () => {
+  const p = await openApp();
+  await p.evaluate(() => {
+    const dt = new DataTransfer();
+    dt.items.add(new File(['<b>Dropped text</b>'], 'drop.html', { type: 'text/html' }));
+    document.querySelector('#source').dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt }));
+  });
+  await p.locator('#fileResults a').first().waitFor();
+  await p.waitForFunction(() => !document.querySelector('#clearFiles').disabled);
+  await p.locator('#fileInput').setInputFiles([
+    { name: 'wrong.pdf', mimeType: 'application/pdf', buffer: Buffer.from('no') },
+    { name: 'empty.html', mimeType: 'text/html', buffer: Buffer.from('<script>bad()</script>') },
+    { name: 'big.html', mimeType: 'text/html', buffer: Buffer.alloc(5 * 1024 * 1024 + 1) },
+    { name: 'unicode.html', mimeType: 'text/html', buffer: Buffer.concat([Buffer.from([255, 254]), Buffer.from('<b>你好 café</b>', 'utf16le')]) }
+  ]);
+  await p.waitForFunction(() => !document.querySelector('#clearFiles').disabled);
+  assert.equal(await p.locator('.file-error').count(), 3);
+  assert.equal(await p.locator('#fileResults a').count(), 6);
+  const pending = p.waitForEvent('download');
+  await p.locator('#fileResults li').last().locator('a').last().click();
+  assert.match(readFileSync(await (await pending).path(), 'utf8'), /你好 café/);
+  for (const size of [{ width: 320, height: 568 }, { width: 1280, height: 800 }]) {
+    await p.setViewportSize(size);
+    const bounds = await p.locator('#chooseFiles').boundingBox();
+    assert.ok(bounds.y >= 0 && bounds.y + bounds.height <= size.height);
+    assert.equal(await p.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+  }
+  await p.close();
+});
+
 await test('no console errors or page errors', async () => {
   // Chrome logs a CSP notice when pasted HTML contains style="" attributes:
   // the policy refuses to apply them even in the inert parse. That is the
