@@ -701,6 +701,12 @@ await test('copy and document actions remain in the viewport at desktop and phon
     for (const rect of metrics.actions) assert.ok(rect.top >= 0 && rect.bottom <= height + 1 && rect.left >= 0 && rect.right <= width + 1, JSON.stringify({width,height,rect}));
     assert.ok(metrics.previewHeight >= 45, JSON.stringify({width,height,metrics}));
     assert.ok(metrics.previewScroll > metrics.previewHeight, 'long preview scrolls inside its pane');
+    if (width < 900) await p.click('#showSourceBtn');
+    const sourceRect = await p.locator('#source').boundingBox();
+    const dropRect = await p.locator('#fileDrop').boundingBox();
+    assert.ok(sourceRect.height >= 45, 'editor stays usable ' + JSON.stringify({width,height,sourceRect,dropRect}));
+    assert.ok(dropRect.y >= sourceRect.y + sourceRect.height && dropRect.y + dropRect.height <= height, 'drop area stays below editor and in viewport');
+    assert.equal(await p.locator('#chooseFiles').isVisible(), true);
   }
   await p.close();
 });
@@ -958,7 +964,8 @@ await test('HTML file picker creates safe local downloads and preserves the edit
   assert.equal(await p.locator('#fileResults li').count(), 2);
   assert.equal(await p.locator('#fileResults a').count(), 6);
   assert.equal(await p.locator('#source').inputValue(), 'Keep my editor draft.');
-  assert.equal(await p.locator('#panels').isVisible(), false);
+  assert.equal(await p.locator('#panels').isVisible(), true);
+  assert.equal(await p.locator('#source').isVisible(), true);
   assert.equal(await p.evaluate(() => window.FILE_EXECUTED), undefined);
   const row = p.locator('#fileResults li').first();
   for (const [i, ext] of [[0, 'rtf'], [1, 'html'], [2, 'txt']]) {
@@ -978,9 +985,8 @@ await test('HTML file picker creates safe local downloads and preserves the edit
   const saved = readFileSync(await (await savePending).path(), 'utf8');
   assert.ok(!saved.includes('Café notes') && !saved.includes('Keep my editor draft.'));
   assert.equal(requests.length, before, 'file conversion and downloads use no network');
-  await p.locator('#backToEditor').click();
+  await p.locator('#source').focus();
   assert.equal(await p.locator('#source').inputValue(), 'Keep my editor draft.');
-  await p.locator('#openFiles').click();
   await p.locator('#clearFiles').click();
   assert.equal(await p.locator('#fileResults li').count(), 0);
   await p.close();

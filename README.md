@@ -46,4 +46,4 @@ The code was developed and reviewed with AI assistance. No AI processes your tex
 
 ### HTML files
 
-Choose **Convert files** or drop `.html` / `.htm` files anywhere on the page. Each file gets local download links for RTF, cleaned HTML and plain text, without displaying its contents or replacing an editor draft. Up to 20 files per list, 5 MB each; UTF-8 and BOM-marked UTF-16 are supported. Settings are captured when files are added. Clear the list to release generated files; links exist only in the current tab. Original files are never modified or uploaded.
+Use the file drop area beneath the editor: choose **Choose files** or drop `.html` / `.htm` files anywhere on the page. Each file gets local download links for RTF, cleaned HTML and plain text, without displaying its contents or replacing an editor draft. Up to 20 files per list, 5 MB each; UTF-8 and BOM-marked UTF-16 are supported. Settings are captured when files are added. Clear the list to release generated files; links exist only in the current tab. Original files are never modified or uploaded.
