@@ -56,6 +56,7 @@ There's no build step and no runtime dependency. Everything is in
 
 ```bash
 node tests/run-tests.mjs      # 51 browser tests (Playwright + Chromium, offline)
+node tests/http-download.mjs  # Hosted-page download, blank bytes, no draft upload
 node tools/update-csp.mjs     # re-hash the CSP after editing the inline <script> or <style>
 ```
 

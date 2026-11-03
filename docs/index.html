@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-MdOte2Ip24A5qBTVj3reD+9yYhvWJAIT7zENWimZL4Q='; style-src 'sha256-RnTub8OMrl2cmy9S2uSPOO7cPtvwtaK2PfYjwSKRJHo='; connect-src 'none'; img-src 'none'; font-src 'none'; media-src 'none'; object-src 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; manifest-src 'none'; form-action 'none'; base-uri 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-CCIOODrVwn6aS2GZ1uQcYAFeCMEBOd0ZEGE9/LYEwIs='; style-src 'sha256-RnTub8OMrl2cmy9S2uSPOO7cPtvwtaK2PfYjwSKRJHo='; connect-src 'none'; img-src 'none'; font-src 'none'; media-src 'none'; object-src 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; manifest-src 'none'; form-action 'none'; base-uri 'none'">
 <meta name="referrer" content="no-referrer">
 <meta name="description" content="Turn a story with inline HTML and typed line breaks into clean rich text. Runs entirely in your browser; nothing is uploaded or saved.">
 <title>Story to Rich Text</title>
@@ -1159,7 +1159,7 @@ and close</b>, and Mara smiled.`;
   // Point the offline link at this page's own file, whatever it is named.
   // It downloads that static file; the draft in the live page is never included.
   if (location.protocol === 'file:' || location.protocol === 'http:' || location.protocol === 'https:') {
-    $('saveTool').href = location.href.replace(/[?#].*$/, '');
+    if (location.protocol === 'file:') $('saveTool').href = location.href.replace(/[?#].*$/, '');
   }
 
   window.addEventListener('beforeunload', (e) => {
