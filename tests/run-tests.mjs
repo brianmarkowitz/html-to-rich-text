@@ -21,7 +21,7 @@ const { chromium } = loadPlaywright();
 const appFile = fileURLToPath(new URL('../docs/index.html', import.meta.url));
 const appUrl = pathToFileURL(appFile).href;
 const appSource = readFileSync(appFile, 'utf8');
-const work = mkdtempSync(join(tmpdir(), 'story-rt-tests-'));
+const work = mkdtempSync(join(tmpdir(), 'text-rt-tests-'));
 
 const results = [];
 async function test(name, fn) {
@@ -78,8 +78,8 @@ async function openApp(init) {
 const page = await openApp();
 
 async function reveal(p, selector) {
-  const id = ['#htmlMode', '#lineBreaks', '#keepExtra', '#spacing', '#autoBtn'].includes(selector) ? 'adjust' : 'moreSave';
-  if (!(await p.$eval('#' + id, (e) => e.open))) await p.locator('#' + id + ' > summary').click();
+  if (!['#htmlMode', '#lineBreaks', '#keepExtra', '#spacing', '#autoBtn'].includes(selector)) return;
+  if (!(await p.$eval('#adjust', (e) => e.open))) await p.locator('#adjust > summary').click();
 }
 
 
@@ -407,30 +407,29 @@ await test('starts with the example, rendered preview and enabled outputs', asyn
   assert.match(await page2.inputValue('#source'), /^<center><b>Weekend notes<\/b><\/center>/);
   assert.equal(await page2.$eval('#preview p', (e) => e.className), 'al-center');
   assert.match(await page2.textContent('#preview'), /Weekend notes/);
-  assert.match(await page2.textContent('#status'), /Example text/);
+  assert.equal(await page2.textContent('#status'), '');
   for (const id of ['copyRichBtn', 'copyPlainBtn', 'rtfBtn', 'htmlBtn', 'txtBtn']) assert.ok(await page2.isEnabled('#' + id), id);
 });
-await test('the unedited example can be cleared and reloaded without asking', async () => {
+await test('entering the example clears it once, while later focus keeps personal text', async () => {
   let asked = false;
   const onDialog = (d) => { asked = true; d.dismiss(); };
   page2.on('dialog', onDialog);
-  await page2.click('#clearBtn');
+  await page2.click('#source');
   assert.equal(await page2.inputValue('#source'), '');
-  await page2.click('#exampleBtn');
+  assert.equal(await page2.textContent('#preview'), '');
+  await page2.keyboard.type('My new text.');
+  await page2.locator('#rtfBtn').focus();
+  await page2.click('#source');
+  assert.equal(await page2.inputValue('#source'), 'My new text.');
   page2.off('dialog', onDialog);
   assert.equal(asked, false);
-  assert.ok((await page2.inputValue('#source')).includes('Weekend notes'));
-  assert.ok(await page2.$eval('#preview', (e) => e.querySelectorAll('p').length) >= 5);
-  assert.equal(await page2.$eval('#preview p', (e) => e.className), 'al-center');
 });
-await test('example and clear ask before replacing text; cancelling keeps it', async () => {
+await test('clear protects personal text, and cancelling keeps it', async () => {
   await page2.fill('#source', 'My own synthetic draft.');
   const messages = [];
-  page2.on('dialog', (d) => { messages.push(d.message()); d.dismiss(); });
-  await page2.click('#exampleBtn');
+  page2.once('dialog', (d) => { messages.push(d.message()); d.dismiss(); });
   await page2.click('#clearBtn');
-  page2.removeAllListeners('dialog');
-  assert.equal(messages.length, 2);
+  assert.equal(messages.length, 1);
   assert.equal(await page2.inputValue('#source'), 'My own synthetic draft.');
   page2.once('dialog', (d) => d.accept());
   await page2.click('#clearBtn');
@@ -456,7 +455,6 @@ await test('escaped formatting is detected without opening settings or changing 
   assert.equal(await page2.inputValue('#htmlMode'), 'auto');
   assert.equal(await page2.inputValue('#source'), input);
   assert.equal(await page2.$eval('#preview', (e) => e.innerHTML), '<p><strong>Hi</strong> there</p>');
-  assert.match(await page2.textContent('#autoSummary'), /Formatting restored/);
 });
 await test('spacing choice changes the preview style', async () => {
   await reveal(page2, '#spacing');
@@ -543,9 +541,8 @@ async function downloadFrom(p, selector) {
   return { name: dl.suggestedFilename(), body: readFileSync(path, 'utf8'), path };
 }
 await test('downloads real .rtf, .html and .txt files named from the title', async () => {
-  page2.once('dialog', (d) => d.accept());
-  await page2.click('#exampleBtn');
-  const rtf = await downloadFrom(page2, '#rtfBtn');
+  const demo = await openApp();
+  const rtf = await downloadFrom(demo, '#rtfBtn');
   assert.equal(rtf.name, 'weekend-notes.rtf');
   assert.ok(rtf.body.startsWith('{\\rtf1') && balanced(rtf.body));
   assert.ok(rtf.body.includes('caf\\u233?') && rtf.body.includes('Th\\u233?o') && rtf.body.includes('\\qr'));
@@ -553,14 +550,15 @@ await test('downloads real .rtf, .html and .txt files named from the title', asy
     const txt = execFileSync('textutil', ['-convert', 'txt', '-stdout', rtf.path], { encoding: 'utf8' });
     assert.ok(txt.includes('Théo') && txt.includes('— a note to yourself'), txt);
   }
-  const html = await downloadFrom(page2, '#htmlBtn');
+  const html = await downloadFrom(demo, '#htmlBtn');
   assert.equal(html.name, 'weekend-notes.html');
   assert.ok(html.body.startsWith('<!doctype html>') && html.body.includes('<title>Weekend notes</title>'));
   assert.ok(html.body.includes('<blockquote') && html.body.includes('text-align:right'));
-  const txt = await downloadFrom(page2, '#txtBtn');
+  const txt = await downloadFrom(demo, '#txtBtn');
   assert.equal(txt.name, 'weekend-notes.txt');
   assert.ok(txt.body.startsWith('Weekend notes\n\nHello there,\nA little breathing room makes the day feel brighter.\n\nA few good things'));
-  assert.match(await page2.textContent('#status'), /is ready/);
+  assert.match(await demo.textContent('#status'), /is ready/);
+  await demo.close();
 });
 await test('edit then immediately export/copy uses the latest text, not a stale preview', async () => {
   await page2.fill('#source', 'Old words.');
@@ -641,17 +639,20 @@ await test('form controls are labelled and the page has no horizontal scroll on 
 });
 
 
-await test('default UI hides technical choices and optional save formats', async () => {
+await test('save actions and offline download are visible without expanding menus', async () => {
   const p = await openApp();
   assert.equal(await p.$eval('#adjust', e => e.open), false);
-  assert.equal(await p.$eval('#moreSave', e => e.open), false);
   assert.equal(await p.isVisible('#htmlMode'), false);
-  assert.equal(await p.isVisible('#copyPlainBtn'), false);
+  for (const id of ['copyRichBtn','rtfBtn','copyPlainBtn','selectBtn','htmlBtn','txtBtn','printBtn','saveTool']) {
+    assert.equal(await p.isVisible('#' + id), true, id);
+  }
+  assert.equal(await p.$eval('#moreSave', e => e.tagName), 'SECTION');
+  assert.equal(await p.$eval('#saveTool', e => Boolean(e.closest('header'))), true);
+  assert.equal(await p.locator('#exampleBtn, #autoSummary').count(), 0);
+  assert.ok(!/Automatic formatting\. Paragraph breaks kept\.|\bstory\b/i.test(await p.locator('body').innerText()));
   assert.equal(await p.inputValue('#htmlMode'), 'auto');
   assert.equal(await p.inputValue('#lineBreaks'), 'auto');
   assert.equal(await p.inputValue('#keepExtra'), 'auto');
-  assert.equal(await p.textContent('#copyRichBtn'), 'Copy formatted text');
-  assert.equal(await p.textContent('#rtfBtn'), 'Download document');
   await p.close();
 });
 await test('settings open with the keyboard, manual choices persist, and automatic reset works', async () => {
@@ -691,7 +692,7 @@ await test('copy and document actions remain in the viewport at desktop and phon
       const bounds = el => { const r = el.getBoundingClientRect(); return { top:r.top, bottom:r.bottom, left:r.left, right:r.right }; };
       return { height:innerHeight, width:innerWidth, page:document.documentElement.scrollHeight,
         scrollWidth:document.documentElement.scrollWidth,
-        actions:[document.getElementById('copyRichBtn'),document.getElementById('rtfBtn'),document.querySelector('#moreSave > summary')].map(bounds),
+        actions:['copyRichBtn','rtfBtn','copyPlainBtn','selectBtn','htmlBtn','txtBtn','printBtn','saveTool'].map(id => document.getElementById(id)).map(bounds),
         previewHeight:document.getElementById('preview').clientHeight,
         previewScroll:document.getElementById('preview').scrollHeight };
     });
@@ -724,7 +725,7 @@ console.log('Site visits counter');
 
 // The published page and the counter are mocked: tests never contact either.
 const PROD_ORIGIN = 'https://brianmarkowitz.github.io';
-const PROD_URL = PROD_ORIGIN + '/story-to-rich-text/';
+const PROD_URL = PROD_ORIGIN + '/html-to-rich-text/';
 const COUNTER_SRC = COUNTER_IMAGE + '?label=Site%20visits&color=226247&labelColor=173a2d';
 const COUNTER_STATS = 'https://hits.sh/brianmarkowitz.github.io/story-to-rich-text/visits-20261103-r1/';
 const badgeSVG = (count, width) => `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="20" role="img" aria-label="Site visits: ${count}"><rect width="${width}" height="20" rx="3" fill="#173a2d"/><text x="6" y="14" fill="#fff" font-size="11" font-family="Verdana">Site visits ${count}</text></svg>`;
@@ -769,12 +770,10 @@ await test('published page loads exactly one fixed counter image, with no referr
   assert.match(await p.getAttribute('#visits', 'title'), /repeat visits.*Nov 3, 2026.*not a count of unique people/);
   assert.deepEqual(await p.$eval('#visits', (a) => ({ rel: a.rel, ref: a.referrerPolicy, href: a.href })),
     { rel: 'noopener noreferrer', ref: 'no-referrer', href: COUNTER_STATS });
-  // Use the tool fully: type, load the example, change and reset settings, copy and download.
+  // Use the tool fully: enter text, change and reset settings, copy and download.
   const sentinel = 'PRIVATE_WRITING_SENTINEL_7781';
   await p.fill('#source', `<b>${sentinel}</b>\n\nMore text.`);
   await p.waitForTimeout(150);
-  p.once('dialog', (d) => d.accept());
-  await p.click('#exampleBtn');
   await reveal(p, '#lineBreaks');
   await p.selectOption('#lineBreaks', 'join');
   await p.click('#autoBtn');
@@ -803,7 +802,7 @@ await test('published page loads exactly one fixed counter image, with no referr
   assert.deepEqual(env.errors, []);
   await p.close();
   // The index.html address also counts, once per page load.
-  const q = await env.open(PROD_ORIGIN + '/story-to-rich-text/index.html');
+  const q = await env.open(PROD_ORIGIN + '/html-to-rich-text/index.html');
   await q.waitForSelector('#visits img');
   await q.waitForTimeout(200);
   assert.equal(env.counterHits().length, 2);
@@ -843,7 +842,7 @@ await test('blocked counter shows a visible fallback and formatting still works'
 
 await test('no counter request on other paths, other origins or local copies', async () => {
   const env = await prodContext();
-  for (const url of [PROD_ORIGIN + '/', PROD_ORIGIN + '/story-to-rich-text/other.html', PROD_ORIGIN + '/story-to-rich-text-copy/',
+  for (const url of [PROD_ORIGIN + '/', PROD_ORIGIN + '/html-to-rich-text/other.html', PROD_ORIGIN + '/story-to-rich-text-copy/',
     'https://someone-else.github.io/story-to-rich-text/']) {
     const p = await env.open(url);
     await p.waitForTimeout(150);
@@ -874,9 +873,9 @@ await test('a very large count stays fully readable in the header without overfl
       const h1 = document.querySelector('.brand h1');
       return { page: document.documentElement.scrollHeight, sw: document.documentElement.scrollWidth,
         badge: r(document.getElementById('visits')), img: r(img), natural: [img.naturalWidth, img.naturalHeight],
-        brand: r(document.querySelector('.brand')), mark: r(document.querySelector('.mark')), h1: r(h1),
+        brand: r(document.querySelector('.header-row')), mark: r(document.querySelector('.mark')), h1: r(h1),
         h1Line: parseFloat(getComputedStyle(h1).lineHeight), preview: document.getElementById('preview').clientHeight,
-        actions: [r(document.getElementById('copyRichBtn')), r(document.getElementById('rtfBtn')), r(document.querySelector('#moreSave > summary'))] };
+        actions: ['copyRichBtn','rtfBtn','copyPlainBtn','selectBtn','htmlBtn','txtBtn','printBtn','saveTool'].map(id => r(document.getElementById(id))) };
     });
     const ctx = JSON.stringify({ width, height, m });
     assert.ok(m.sw <= width, 'horizontal overflow ' + ctx);

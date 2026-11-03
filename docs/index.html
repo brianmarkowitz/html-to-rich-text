@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-1IPbbxYB2HJAuB4QNI9tPArzjtKR55Sc7S8EvDK690I='; style-src 'sha256-5zEWuR250ZDjRUiKuBAug6aZFxdlDMkIWn+aAB6V4UA='; connect-src 'none'; img-src https://hits.sh/brianmarkowitz.github.io/story-to-rich-text/visits-20261103-r1.svg; font-src 'none'; media-src 'none'; object-src 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; manifest-src 'none'; form-action 'none'; base-uri 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-NJA4R4gLNaLS9BIWD1GaF94yg2uumvS4yvUPJ3dQtNM='; style-src 'sha256-xUaVORrWT0k7F50EgDbZzosjnveItc7/ezwDlH0KHtA='; connect-src 'none'; img-src https://hits.sh/brianmarkowitz.github.io/story-to-rich-text/visits-20261103-r1.svg; font-src 'none'; media-src 'none'; object-src 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; manifest-src 'none'; form-action 'none'; base-uri 'none'">
 <meta name="referrer" content="no-referrer">
 <meta name="description" content="Paste any text with inline HTML and typed line breaks and get clean, formatted text to copy or download. Your writing is formatted in your browser and never uploaded; the published page shows one hosted site-visits counter image.">
 <title>Text, Unwrapped</title>
@@ -98,7 +98,6 @@ a.visits:hover { border-color: var(--line-strong); }
   background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
   box-shadow: var(--lift);
 }
-.auto-summary { margin: 0; padding: 12px 16px; color: var(--ink-soft); font-size: 0.95rem; }
 details > summary {
   cursor: pointer; padding: 10px 16px; font-weight: 600; color: var(--ink);
   border-radius: var(--radius);
@@ -210,8 +209,6 @@ textarea::placeholder { color: #8b918c; }
 .outputs { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border-top: 1px solid var(--line); }
 .outputs .group { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .outputs .hint { margin: 0; }
-details.more > summary { padding: 6px 4px; font-size: 0.93rem; color: var(--ink-soft); }
-details.more .group { padding: 6px 0 2px; }
 .status {
   min-height: 1.5em; margin: 0; padding: 0 14px 12px;
   font-size: 0.92rem; color: var(--ink-soft);
@@ -229,88 +226,92 @@ footer a { color: var(--accent); font-weight: 600; text-underline-offset: 2px; }
   .preview { padding: 16px; font-size: 17px; }
 }
 
-/* The workspace scrolls; its copy/download actions never leave the viewport. */
-body { height: 100vh; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; padding-bottom: calc(132px + env(safe-area-inset-bottom, 0px)); }
-header.top { width: 100%; flex: none; padding-top: 12px; padding-bottom: 4px; }
+/* Header, editor and visible save controls share the available viewport. */
+body { height: 100vh; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
+header.top { width: 100%; flex: none; padding-top: 12px; padding-bottom: 8px; }
+.header-row, .header-tools { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px 16px; }
+.header-tools { margin-top: 8px; }
+.brand { flex-wrap: nowrap; gap: 10px; }
 .mark { width: 32px; height: 32px; font-size: 20px; }
-h1 { font-size: clamp(1.3rem, 3vw, 1.75rem); }
-.tagline { font-size: 0.92rem; margin-top: 4px; }
-.privacy { margin-top: 8px; padding: 7px 10px; font-size: 0.86rem; }
-main.wrap { width: 100%; flex: 1; min-height: 0; display: flex; flex-direction: column; padding-bottom: 10px; }
-.settings { position: relative; flex: none; display: flex; align-items: center; justify-content: space-between; margin: 8px 0; }
-.auto-summary { flex: 1; min-width: 0; padding: 8px 12px; font-size: 0.85rem; }
-details.adjust { border-top: 0; border-left: 1px solid var(--line); flex: none; }
-details.adjust > summary { padding: 11px 12px; font-size: 0.88rem; }
+h1 { font-size: clamp(1.15rem, 5.3vw, 1.75rem); }
+.tagline { flex: 1; margin: 0; font-size: 0.9rem; }
+.tool-buttons { display: flex; align-items: center; gap: 8px; }
+a.save { display: inline-flex; align-items: center; justify-content: center; min-height: 38px; padding: 7px 12px; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--sun-soft); color: var(--ink); font-size: 0.83rem; font-weight: 650; line-height: 1.2; text-align: center; text-decoration: none; }
+a.save:hover { background: #ffeaa8; }
+.privacy { margin-top: 8px; padding: 6px 10px; font-size: 0.8rem; line-height: 1.4; max-width: none; }
+details.adjust { position: relative; flex: none; border: 1px solid var(--line); border-radius: 10px; background: var(--card); }
+details.adjust > summary { min-height: 38px; padding: 8px 10px; font-size: 0.83rem; border-radius: 10px; }
 details.adjust[open] > summary { background: var(--accent-soft); }
-.options { position: absolute; z-index: 30; top: calc(100% + 5px); left: 0; right: 0; padding: 16px; max-height: min(62dvh, 490px); overflow: auto; background: var(--card); border: 1px solid var(--line-strong); border-radius: var(--radius); box-shadow: 0 10px 30px #1e232022; }
-.view-switch { display: flex; flex: none; gap: 4px; padding: 3px; border: 1px solid var(--line); border-radius: 12px; margin-bottom: 8px; background: var(--card); box-shadow: var(--lift); }
-.view-switch button { width: 50%; min-height: 36px; padding: 5px 10px; border: 0; border-radius: 9px; background: transparent; }
+.options { position: absolute; z-index: 50; top: calc(100% + 6px); right: 0; width: min(740px, calc(100vw - 32px)); padding: 16px; max-height: min(60dvh, 490px); overflow: auto; background: var(--card); border: 1px solid var(--line-strong); border-radius: var(--radius); box-shadow: 0 10px 30px #173a2d22; }
+main.wrap { width: 100%; flex: 1; min-height: 0; display: flex; flex-direction: column; padding-bottom: 12px; }
+.view-switch { display: flex; flex: none; gap: 4px; padding: 3px; border: 1px solid var(--line); border-radius: 12px; margin-bottom: 8px; background: var(--card); }
+.view-switch button { width: 50%; min-height: 34px; padding: 5px 10px; border: 0; border-radius: 9px; background: transparent; }
 .view-switch button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent-hover); }
 .panels { flex: 1; min-height: 0; }
 .panel { min-height: 0; height: 100%; }
 .panel-head, .panel-foot { flex: none; }
 .panel-head { padding: 10px 12px; }
-.panel-foot { padding: 6px 12px; font-size: 0.78rem; }
+.panel-foot { padding: 5px 12px; font-size: 0.75rem; }
 textarea { min-height: 0; height: 100%; resize: none; overflow: auto; padding: 12px; }
 .preview { min-height: 0; max-height: none; padding: 16px 20px; }
-.action-bar { position: fixed; z-index: 40; left: 0; right: 0; bottom: 0; padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px)); background: var(--card); border-top: 1px solid var(--line-strong); box-shadow: 0 -3px 0 #f3c44333, 0 -3px 18px #173a2d0c; }
-.action-inner { max-width: 1208px; margin: 0 auto; position: relative; display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 6px 10px; }
-.actions-main { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.actions-main button { min-height: 44px; white-space: normal; }
-.action-bar .status { grid-column: 1; grid-row: 2; min-width: 0; padding: 0; font-size: 0.83rem; min-height: 1.3em; max-height: 2.8em; overflow: auto; }
-details.more { grid-column: 2; grid-row: 2; }
-details.more > summary { padding: 8px 4px; min-height: 40px; font-size: 0.86rem; }
-.more-content { position: absolute; bottom: calc(100% + 18px); right: 0; width: min(420px, calc(100vw - 32px)); max-height: calc(100dvh - 170px); overflow: auto; padding: 12px; background: var(--card); border: 1px solid var(--line-strong); border-radius: var(--radius); box-shadow: 0 -8px 30px #1e232022; }
-.more-content .group { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.more-content .group button { min-width: 0; min-height: 44px; padding: 8px; font-size: 0.85rem; }
-.more-note { color: var(--muted); font-size: 0.8rem; margin: 12px 0 0; }
-.more-note a { color: var(--accent); font-weight: 600; }
+.action-bar { flex: none; padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px)); background: var(--card); border-top: 1px solid var(--line-strong); box-shadow: 0 -3px 0 #f3c44333; }
+.action-inner { max-width: 1208px; margin: 0 auto; display: grid; gap: 8px; }
+.actions-main { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.actions-main button { min-height: 42px; white-space: normal; }
+.more h2 { margin: 0 0 5px; font-size: 0.76rem; font-weight: 650; color: var(--muted); }
+.more .group { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.more button { min-width: 0; min-height: 36px; padding: 5px 8px; font-size: 0.82rem; line-height: 1.2; }
+.action-bar .status { margin: 0; padding: 0; min-height: 0; font-size: 0.78rem; line-height: 1.35; max-height: 2.7em; overflow: auto; }
+.action-bar .status:empty { display: none; }
+@media (min-width: 900px) { .view-switch { display: none; } }
 @media (max-width: 899px) {
-  .options { max-height: max(90px, calc(100dvh - 340px)); }
   .panels[data-view="source"] .preview-panel, .panels[data-view="preview"] .source-panel { display: none; }
 }
-@media (min-width: 700px) {
-  body { padding-bottom: calc(86px + env(safe-area-inset-bottom, 0px)); }
-  .action-inner { grid-template-columns: auto 1fr auto; gap: 12px; }
-  .actions-main { grid-column: 1; grid-row: 1; display: flex; }
-  .action-bar .status { grid-column: 2; grid-row: 1; }
-  details.more { grid-column: 3; grid-row: 1; }
+@media (max-width: 699px) {
+  .header-tools .tagline { display: none; }
+  .tool-buttons { display: grid; grid-template-columns: 1fr auto; width: 100%; }
+  .action-bar { padding: 8px 10px calc(8px + env(safe-area-inset-bottom, 0px)); }
+  .action-inner { gap: 6px; }
+  .more .group { grid-template-columns: repeat(3, 1fr); }
+  .more button { min-height: 34px; padding: 5px; font-size: 0.78rem; }
+  .more button:nth-child(4) { grid-column: 1 / 3; }
 }
-@media (min-width: 900px) { .view-switch { display: none; } }
 @media (max-width: 420px) {
   .wrap { padding-left: 10px; padding-right: 10px; }
-  .brand { row-gap: 4px; }
+  .header-row { column-gap: 8px; }
   .visits { height: 24px; padding: 1px 4px; }
-  .tagline { font-size: 0.85rem; }
-  .auto-summary { padding: 7px 9px; font-size: 0.78rem; }
-  details.adjust > summary { padding: 10px 8px; font-size: 0.8rem; }
-  .actions-main button { font-size: 0.83rem; padding: 7px; }
-  .panel-head { padding: 8px 10px; }
+  .privacy { margin-top: 6px; font-size: 0.74rem; }
+  a.save { min-height: 36px; padding: 6px; font-size: 0.76rem; }
+  details.adjust > summary { min-height: 36px; padding: 7px 8px; font-size: 0.76rem; }
+  .actions-main button { font-size: 0.82rem; padding: 7px; }
+  .panel-head { padding: 7px 10px; }
   .panel-head .hint { display: none; }
-  .panel-head button { min-height: 36px; font-size: 0.82rem; padding: 5px 8px; }
-  .panel-foot { font-size: 0.71rem; }
+  .panel-head button { min-height: 32px; font-size: 0.8rem; padding: 4px 8px; }
+  .panel-foot { padding: 4px 10px; font-size: 0.7rem; }
+  .panel-foot span:last-child:not(:first-child) { display: none; }
 }
 @media (max-height: 560px) {
-  header.top { padding-top: 6px; }
-  .tagline, .privacy, .auto-summary, .panel-head .hint { display: none; }
-  .settings { justify-content: flex-end; margin: 5px 0; }
-  details.adjust { border: 0; }
-  details.adjust > summary { padding: 6px 10px; }
-  .panel-head { padding: 6px 8px; }
-  .panel-foot { padding: 4px 8px; }
-}
-
-@media (max-height: 560px) {
-  .options { max-height: max(90px, calc(100dvh - 170px)); }
+  header.top { padding-top: 6px; padding-bottom: 6px; }
+  .tagline, .privacy, .panel-head .hint { display: none; }
+  .header-tools { margin-top: 4px; }
+  .panel-head { padding: 5px 8px; }
+  .panel-foot { padding: 3px 8px; }
+  .options { max-height: calc(100dvh - 150px); }
 }
 @media (max-height: 560px) and (min-width: 500px) {
-  body { padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
-  .action-inner { grid-template-columns: 1fr 1fr auto; }
-  .actions-main { display: contents; }
-  .actions-main button { min-width: 0; font-size: 0.8rem; padding: 6px; }
-  details.more { grid-column: 3; grid-row: 1; }
-  .action-bar .status { position: absolute; left: 0; right: 0; bottom: calc(100% + 14px); padding: 6px; background: var(--card); }
-  .action-bar .status:empty { display: none; }
+  .header-row { flex: 1; }
+  header.top { display: flex; align-items: center; gap: 12px; }
+  .header-tools { margin: 0; }
+  .tool-buttons { display: flex; width: auto; }
+  a.save { max-width: 150px; padding: 5px 8px; font-size: 0.74rem; }
+  details.adjust > summary { padding: 8px; font-size: 0.74rem; }
+  .visits { margin-left: 0; }
+  .action-bar { padding-top: 6px; padding-bottom: 6px; }
+  .actions-main button { min-height: 36px; padding: 5px; }
+  .more .group { grid-template-columns: repeat(5, 1fr); }
+  .more button { min-height: 30px; }
+  .more button:nth-child(4) { grid-column: auto; }
+  .more h2 { margin-bottom: 3px; font-size: 0.7rem; }
 }
 @media (prefers-reduced-motion: reduce) {
   button { transition: none; }
@@ -329,21 +330,20 @@ details.more > summary { padding: 8px 4px; min-height: 40px; font-size: 0.86rem;
 <body>
 <a class="skip" href="#source">Skip to your text</a>
 <header class="top wrap">
-  <div class="brand">
-    <span class="mark" aria-hidden="true">¶</span>
-    <h1>Text, <span class="un">Unwrapped</span></h1>
+  <div class="header-row">
+    <div class="brand">
+      <span class="mark" aria-hidden="true">¶</span>
+      <h1>Text, <span class="un">Unwrapped</span></h1>
+    </div>
     <a class="visits" id="visits" hidden href="https://hits.sh/brianmarkowitz.github.io/story-to-rich-text/visits-20261103-r1/"
       target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer"
       title="Counter restarted Nov 3, 2026. Site visits: every page load counts, including repeat visits, since Nov 3, 2026. This is not a count of unique people. Opens visit statistics on hits.sh."><span class="sr">Site visits since Nov 3, 2026, counting repeat visits, not unique people. Opens statistics on hits.sh.</span></a>
   </div>
-  <p class="tagline">Paste any text. The formatting is handled for you.</p>
-  <p class="privacy"><span class="dot" aria-hidden="true"></span><span>Your writing stays on your device. No uploads or AI processing.</span></p>
-</header>
-
-<main class="wrap">
-  <section class="settings" aria-label="Formatting">
-    <p class="auto-summary" id="autoSummary">Formatting is chosen automatically when you paste your text.</p>
-    <details class="adjust" id="adjust">
+  <div class="header-tools">
+    <p class="tagline">Turn HTML and plain text into ready-to-share writing.</p>
+    <div class="tool-buttons">
+      <a class="save" id="saveTool" href="index.html" download="text-unwrapped.html">Save this tool for offline use</a>
+      <details class="adjust" id="adjust">
       <summary>Adjust formatting</summary>
       <div class="options" id="options">
         <div class="field">
@@ -389,8 +389,12 @@ details.more > summary { padding: 8px 4px; min-height: 40px; font-size: 0.86rem;
         </div>
       </div>
     </details>
-  </section>
+    </div>
+  </div>
+  <p class="privacy"><span class="dot" aria-hidden="true"></span><span>Your writing stays on your device. No uploads or AI processing.</span></p>
+</header>
 
+<main class="wrap">
   <div class="view-switch" role="group" aria-label="Workspace view">
     <button type="button" id="showSourceBtn" aria-pressed="true" aria-controls="sourcePanel">Edit text</button>
     <button type="button" id="showPreviewBtn" aria-pressed="false" aria-controls="previewPanel">See preview</button>
@@ -399,18 +403,17 @@ details.more > summary { padding: 8px 4px; min-height: 40px; font-size: 0.86rem;
     <section class="panel source-panel" id="sourcePanel" aria-labelledby="sourceLabel">
       <div class="panel-head">
         <div>
-          <label class="h2" id="sourceLabel" for="source">Your text</label>
-          <p class="hint" id="sourceHint">Paste or type. A blank line separates paragraphs.</p>
+          <label class="h2" id="sourceLabel" for="source">Your HTML or text</label>
+          <p class="hint" id="sourceHint">Click the example to replace it with your text.</p>
         </div>
         <div class="row">
-          <button type="button" id="exampleBtn" class="quiet">Try an example</button>
           <button type="button" id="clearBtn" class="quiet">Clear</button>
         </div>
       </div>
       <textarea id="source" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off"
         writingsuggestions="false" data-gramm="false" data-gramm_editor="false" data-enable-grammarly="false"
         aria-describedby="sourceHint"
-        placeholder="Type or paste your text here…"></textarea>
+        placeholder="Paste your HTML or start typing…"></textarea>
       <div class="panel-foot"><span id="sourceCount">0 characters</span><span>Not saved. Lives only in this tab.</span></div>
     </section>
 
@@ -433,22 +436,17 @@ details.more > summary { padding: 8px 4px; min-height: 40px; font-size: 0.86rem;
       <button type="button" id="copyRichBtn" class="primary">Copy formatted text</button>
       <button type="button" id="rtfBtn" class="sunny">Download document</button>
     </div>
-    <p class="status" id="status" role="status" aria-live="polite"></p>
-    <details class="more" id="moreSave">
-      <summary>More ways to save</summary>
-      <div class="more-content">
-        <div class="group">
-          <button type="button" id="copyPlainBtn">Copy plain text</button>
-          <button type="button" id="selectBtn">Select preview</button>
-          <button type="button" id="htmlBtn">Download web page</button>
-          <button type="button" id="txtBtn">Download text file</button>
-          <button type="button" id="printBtn">Print / PDF</button>
-        </div>
-        <p class="more-note">The document opens in Word, Pages or Google Docs. Copy or save your work before closing; drafts aren’t stored.</p>
-        <p class="more-note"><a class="save" id="saveTool" href="index.html" download="text-unwrapped.html">Save this tool for offline use</a></p>
-        <p class="more-note">Pictures, scripts and forms in pasted HTML are removed. Formatting runs only on your device.</p>
+    <section class="more" id="moreSave" aria-labelledby="moreSaveLabel">
+      <h2 id="moreSaveLabel">More ways to save</h2>
+      <div class="group">
+        <button type="button" id="copyPlainBtn">Copy plain text</button>
+        <button type="button" id="selectBtn">Select preview</button>
+        <button type="button" id="htmlBtn">Download HTML</button>
+        <button type="button" id="txtBtn">Download text</button>
+        <button type="button" id="printBtn">Print / PDF</button>
       </div>
-    </details>
+    </section>
+    <p class="status" id="status" role="status" aria-live="polite"></p>
   </div>
 </div>
 <noscript><p class="wrap">Text, Unwrapped needs JavaScript. It runs only on your device.</p></noscript>
@@ -1137,11 +1135,7 @@ ${renderHTML(blocks, options)}</article>
     const keepExtra = p.keepExtra === 'auto' || p.keepExtra === 'keep' || p.keepExtra === true;
     const spacing = ['spaced', 'indented', 'compact'].includes(p.spacing) ? p.spacing : 'spaced';
     const automatic = p.htmlMode === 'auto' && p.lineBreaks === 'auto' && p.keepExtra === 'auto' && spacing === 'spaced';
-    const summary = !automatic ? 'Using your choices. Your original text is unchanged.' : !input.trim() ?
-      'Paste your text. Formatting is automatic.' : lineBreaks === 'join' ?
-      'Wrapped lines joined. Paragraph breaks kept.' : htmlMode === 'escaped' ?
-      'Formatting restored. Paragraph breaks kept.' : 'Automatic formatting. Paragraph breaks kept.';
-    return { htmlMode, lineBreaks, keepExtra, spacing, automatic, summary };
+    return { htmlMode, lineBreaks, keepExtra, spacing, automatic };
   }
 
   window.TextUnwrapped = Object.freeze({
@@ -1170,6 +1164,7 @@ A little breathing room makes the day feel brighter.
 Good plans travel <b>better
 with a little space</b> around them.`;
 
+  let exampleActive = false;
   let blocks = [];
   let timer = 0;
 
@@ -1212,7 +1207,6 @@ with a little space</b> around them.`;
     resolved = resolveOptions(source.value, preferences());
     blocks = convert(source.value, resolved);
     preview.className = 'preview sp-' + resolved.spacing;
-    $('autoSummary').textContent = resolved.summary;
     $('autoBtn').disabled = resolved.automatic;
     preview.replaceChildren(renderDOM(blocks));
     const wordCount = countWords(blocks);
@@ -1279,7 +1273,6 @@ with a little space</b> around them.`;
       : 'This browser doesn’t allow copying from here, so nothing was copied. ') +
       `Choose “Select preview”, then press ${copyKey}.`, 'err');
     $('selectBtn').classList.add('emph');
-    $('moreSave').open = true;
   }
 
   async function copyRich() {
@@ -1348,24 +1341,25 @@ with a little space</b> around them.`;
     say(`${name} is ready. Check your downloads.`, 'ok');
   }
 
-  const hasDraft = () => Boolean(source.value.trim()) && source.value !== EXAMPLE;
+  const hasDraft = () => Boolean(source.value.trim()) && !(exampleActive && source.value === EXAMPLE);
 
   function confirmReplace(message) {
     return !hasDraft() || window.confirm(message);
   }
 
-  source.addEventListener('input', schedule);
+  source.addEventListener('focus', () => {
+    if (!exampleActive || source.value !== EXAMPLE) return;
+    exampleActive = false;
+    source.value = '';
+    update();
+    say('');
+  });
+  source.addEventListener('input', () => { exampleActive = false; schedule(); });
   for (const el of [htmlMode, lineBreaks, spacing, keepExtra]) el.addEventListener('change', update);
 
-  $('exampleBtn').addEventListener('click', () => {
-    if (!confirmReplace('Replace your text with the example? Your current text isn’t saved anywhere, so it would be lost.')) return;
-    source.value = EXAMPLE;
-    update();
-    say('Example loaded. It’s made-up text; edit it or replace it with yours.');
-    source.focus();
-  });
   $('clearBtn').addEventListener('click', () => {
     if (!confirmReplace('Clear your text? It isn’t saved anywhere, so it can’t be recovered.')) return;
+    exampleActive = false;
     source.value = '';
     update();
     say('Cleared.');
@@ -1388,25 +1382,15 @@ with a little space</b> around them.`;
   };
   $('showSourceBtn').addEventListener('click', () => showView('source'));
   $('showPreviewBtn').addEventListener('click', () => showView('preview'));
-  for (const details of [$('adjust'), $('moreSave')]) {
-    details.addEventListener('toggle', () => {
-      if (details.open) for (const other of [$('adjust'), $('moreSave')]) if (other !== details) other.open = false;
-    });
-  }
+  const adjust = $('adjust');
   document.addEventListener('keydown', (e) => {
-    if (e.key !== 'Escape') return;
-    for (const details of [$('adjust'), $('moreSave')]) if (details.open) {
-      details.open = false;
-      details.querySelector('summary').focus();
+    if (e.key === 'Escape' && adjust.open) {
+      adjust.open = false;
+      adjust.querySelector('summary').focus();
     }
   });
   document.addEventListener('click', (e) => {
-    // Programmatic file-download links are not outside user clicks.
-    if (!e.isTrusted) return;
-    for (const details of [$('adjust'), $('moreSave')]) {
-      if (details.id === 'moreSave' && e.target.closest('.action-bar')) continue;
-      if (details.open && !details.contains(e.target)) details.open = false;
-    }
+    if (e.isTrusted && adjust.open && !adjust.contains(e.target)) adjust.open = false;
   });
   $('copyRichBtn').addEventListener('click', copyRich);
   $('copyPlainBtn').addEventListener('click', copyPlain);
@@ -1438,9 +1422,8 @@ with a little space</b> around them.`;
   blankTool.querySelector('#previewCount').textContent = '0 paragraphs · 0 words';
   blankTool.querySelector('#preview').className = 'preview sp-spaced';
   blankTool.querySelector('#status').className = 'status';
-  blankTool.querySelector('#autoSummary').textContent = 'Paste your text. Formatting is automatic.';
   blankTool.querySelector('#autoBtn').disabled = true;
-  for (const id of ['adjust', 'moreSave']) blankTool.querySelector('#' + id).removeAttribute('open');
+  blankTool.querySelector('#adjust').removeAttribute('open');
   blankTool.querySelector('#saveTool').setAttribute('href', 'index.html');
   for (const id of ['clearBtn', 'copyRichBtn', 'copyPlainBtn', 'selectBtn', 'rtfBtn', 'htmlBtn', 'txtBtn', 'printBtn']) {
     blankTool.querySelector('#' + id).disabled = true;
@@ -1456,7 +1439,7 @@ with a little space</b> around them.`;
   // It never sees the writing, the address's query or the file name, and
   // formatting never waits on it.
   const COUNTER_ORIGIN = 'https://brianmarkowitz.github.io';
-  const COUNTER_PATHS = ['/story-to-rich-text/', '/story-to-rich-text/index.html'];
+  const COUNTER_PATHS = ['/html-to-rich-text/', '/html-to-rich-text/index.html'];
   // A new counter key starts a fresh tally; legacy counts are not carried over.
   const COUNTER_SRC = 'https://hits.sh/brianmarkowitz.github.io/story-to-rich-text/visits-20261103-r1.svg?label=Site%20visits&color=226247&labelColor=173a2d';
   function showVisits() {
@@ -1486,9 +1469,8 @@ with a little space</b> around them.`;
 
   // Load the built-in sample after capturing the clean offline tool.
   // Leave any text restored by the browser intact and avoid opening the keyboard.
-  if (!source.value.trim()) source.value = EXAMPLE;
+  if (!source.value.trim()) { source.value = EXAMPLE; exampleActive = true; }
   update();
-  if (source.value === EXAMPLE) say('Example text — replace it with yours to get started.');
 })();
 </script>
 </body>

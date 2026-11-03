@@ -20,7 +20,7 @@ const server = createServer((req, res) => {
   res.end(html);
 });
 await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
-const work = mkdtempSync(join(tmpdir(), 'story-tool-http-'));
+const work = mkdtempSync(join(tmpdir(), 'text-tool-http-'));
 let browser;
 try {
   browser = await playwright.chromium.launch();
@@ -35,11 +35,10 @@ try {
   await page.locator('#source').fill(`<center><b>${draft}</b></center>\n\nA second paragraph.`);
   await page.getByText(draft, { exact: true }).waitFor();
   // A filename in a prior download status must not leak into the saved tool.
-  const storyPending = page.waitForEvent('download', { timeout: 10000 });
-  await page.locator('#moreSave > summary').click();
+  const documentPending = page.waitForEvent('download', { timeout: 10000 });
   await page.locator('#txtBtn').click();
-  await storyPending;
-  assert.equal(await page.locator('#moreSave').evaluate(e => e.open), true, 'saving a file must leave other save choices reachable');
+  await documentPending;
+  assert.equal(await page.locator('#moreSave').isVisible(), true, 'all save choices remain reachable');
   assert.ok((await page.locator('#status').textContent()).includes('synthetic-private-draft'));
   const requestsBefore = requests.length;
   const pending = page.waitForEvent('download', { timeout: 10000 });
@@ -59,17 +58,16 @@ try {
   await offline.goto(pathToFileURL(saved).href);
   assert.match(await offline.locator('#source').inputValue(), /^<center><b>Weekend notes/);
   assert.match(await offline.locator('#preview').textContent(), /Weekend notes/);
-  assert.match(await offline.locator('#status').textContent(), /Example text/);
+  assert.equal(await offline.locator('#status').textContent(), '');
   assert.equal(await offline.locator('#htmlMode').inputValue(), 'auto');
   assert.equal(await offline.locator('#adjust').evaluate(e => e.open), false);
-  assert.equal(await offline.locator('#moreSave').evaluate(e => e.open), false);
+  assert.equal(await offline.locator('#moreSave').isVisible(), true);
   await offline.locator('#source').fill('Fresh <b>offline</b> text.\n\nNext paragraph.');
   await offline.locator('#preview strong').filter({ hasText: 'offline' }).waitFor();
   assert.equal(await offline.locator('#preview p').count(), 2);
   assert.equal(await offline.locator('#preview strong').textContent(), 'offline');
   // Saving the renamed tool again remains blank and independent of its draft.
   const againPending = offline.waitForEvent('download', { timeout: 10000 });
-  await offline.locator('#moreSave > summary').click();
   await offline.locator('#saveTool').click();
   const again = await againPending;
   assert.ok(!readFileSync(await again.path(), 'utf8').includes('Fresh <b>offline</b> text.'));
