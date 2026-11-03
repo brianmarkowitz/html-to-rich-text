@@ -8,7 +8,7 @@ import { tmpdir, platform } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import assert from 'node:assert/strict';
-import { expectedPolicy } from '../tools/update-csp.mjs';
+import { expectedPolicy, COUNTER_IMAGE } from '../tools/update-csp.mjs';
 
 const require = createRequire(import.meta.url);
 function loadPlaywright() {
@@ -716,6 +716,182 @@ await test('phone view switch keeps the original text and manual selection revea
   assert.equal(await p.evaluate(() => getSelection().toString().replace(/\s+/g,' ').trim()), 'First Second');
   await p.close();
 });
+console.log('Site visits counter');
+
+// The published page and the counter are mocked: tests never contact either.
+const PROD_ORIGIN = 'https://brianmarkowitz.github.io';
+const PROD_URL = PROD_ORIGIN + '/story-to-rich-text/';
+const COUNTER_SRC = COUNTER_IMAGE + '?label=Site%20visits&color=226247&labelColor=173a2d';
+const COUNTER_STATS = 'https://hits.sh/brianmarkowitz.github.io/story-to-rich-text/';
+const badgeSVG = (count, width) => `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="20" role="img" aria-label="Site visits: ${count}"><rect width="${width}" height="20" rx="3" fill="#173a2d"/><text x="6" y="14" fill="#fff" font-size="11" font-family="Verdana">Site visits ${count}</text></svg>`;
+
+// A fresh online context where every request is recorded and answered locally.
+async function prodContext({ counter = 'ok', count = '1', width = 96, init } = {}) {
+  const ctx = await browser.newContext({ acceptDownloads: true });
+  const seen = [];
+  const errors = [];
+  ctx.on('request', (r) => seen.push(r));
+  await ctx.addInitScript(INSTRUMENT);
+  if (init) await ctx.addInitScript(init);
+  await ctx.route(/^(https?|wss?):/, async (route) => {
+    const url = route.request().url();
+    const u = new URL(url);
+    if (u.hostname === 'hits.sh') {
+      if (counter === 'fail') return route.abort('failed');
+      return route.fulfill({ status: 200, headers: { 'content-type': 'image/svg+xml', 'cache-control': 'no-cache, no-store' }, body: badgeSVG(count, width) });
+    }
+    if (u.protocol === 'https:' && /\.github\.io$/.test(u.hostname)) {
+      return route.fulfill({ status: 200, headers: { 'content-type': 'text/html; charset=utf-8' }, body: appSource });
+    }
+    return route.abort();
+  });
+  const open = async (url) => {
+    const p = await ctx.newPage();
+    p.on('pageerror', (e) => errors.push(String(e)));
+    await p.goto(url);
+    return p;
+  };
+  const web = () => seen.filter((r) => /^https?:/.test(r.url()));
+  const counterHits = () => web().filter((r) => new URL(r.url()).hostname === 'hits.sh');
+  return { ctx, open, web, counterHits, errors };
+}
+
+await test('published page loads exactly one fixed counter image, with no referrer, cookies or writing', async () => {
+  const env = await prodContext({ init: CLIP_OK });
+  const p = await env.open(PROD_URL + '?draft=SECRET_QUERY_5531#SECRET_HASH');
+  await p.waitForFunction(() => { const i = document.querySelector('#visits img'); return i && i.complete && i.naturalWidth > 0; });
+  assert.equal(await p.isVisible('#visits'), true);
+  assert.equal(await p.$eval('#visits img', (i) => i.alt), 'Site visits counter');
+  assert.match(await p.getAttribute('#visits', 'title'), /repeat visits.*Nov 3, 2026.*not a count of unique people/);
+  assert.deepEqual(await p.$eval('#visits', (a) => ({ rel: a.rel, ref: a.referrerPolicy, href: a.href })),
+    { rel: 'noopener noreferrer', ref: 'no-referrer', href: COUNTER_STATS });
+  // Use the tool fully: type, load the example, change and reset settings, copy and download.
+  const sentinel = 'PRIVATE_WRITING_SENTINEL_7781';
+  await p.fill('#source', `<b>${sentinel}</b>\n\nMore text.`);
+  await p.waitForTimeout(150);
+  p.once('dialog', (d) => d.accept());
+  await p.click('#exampleBtn');
+  await reveal(p, '#lineBreaks');
+  await p.selectOption('#lineBreaks', 'join');
+  await p.click('#autoBtn');
+  await p.fill('#source', `<b>${sentinel}</b>`);
+  await p.click('#copyRichBtn');
+  await p.waitForFunction(() => window.__clip);
+  const [dl] = await Promise.all([p.waitForEvent('download'), p.click('#rtfBtn')]);
+  const rtfBody = readFileSync(await dl.path(), 'utf8');
+  assert.ok(rtfBody.includes(sentinel) && !rtfBody.includes('hits.sh'), 'export carries the text, never the counter');
+  const [hdl] = await Promise.all([p.waitForEvent('download'), (async () => { await reveal(p, '#htmlBtn'); await p.click('#htmlBtn'); })()]);
+  assert.ok(!readFileSync(await hdl.path(), 'utf8').includes('hits.sh'), 'HTML export has no counter');
+  await p.waitForTimeout(300);
+  const hits = env.counterHits();
+  assert.equal(hits.length, 1, hits.map((r) => r.url()).join('\n'));
+  assert.equal(hits[0].url(), COUNTER_SRC);
+  assert.equal(hits[0].method(), 'GET');
+  const headers = await hits[0].allHeaders();
+  assert.equal(headers.referer, undefined, 'no Referer');
+  assert.equal(headers.cookie, undefined, 'no cookies');
+  // Only the page itself and the badge touched the network, and nothing carried the writing.
+  assert.deepEqual(env.web().map((r) => r.url()), [PROD_URL + '?draft=SECRET_QUERY_5531', COUNTER_SRC]);
+  for (const r of env.web().slice(1)) {
+    for (const bad of [sentinel, 'SECRET_QUERY', 'SECRET_HASH', 'weekend', 'Weekend']) assert.ok(!r.url().includes(bad) && !(r.postData() || '').includes(bad), bad);
+  }
+  assert.deepEqual(await p.evaluate(() => window.__calls.slice()), [], 'no storage or other network APIs');
+  assert.deepEqual(env.errors, []);
+  await p.close();
+  // The index.html address also counts, once per page load.
+  const q = await env.open(PROD_ORIGIN + '/story-to-rich-text/index.html');
+  await q.waitForSelector('#visits img');
+  await q.waitForTimeout(200);
+  assert.equal(env.counterHits().length, 2);
+  assert.equal(env.counterHits()[1].url(), COUNTER_SRC);
+  await env.ctx.close();
+});
+
+await test('offline copy saved from the published page never carries a loaded counter', async () => {
+  const env = await prodContext();
+  const p = await env.open(PROD_URL);
+  await p.waitForSelector('#visits img');
+  await p.fill('#source', 'Draft that must stay out.');
+  await reveal(p, '#selectBtn');
+  const [dl] = await Promise.all([p.waitForEvent('download'), p.click('#saveTool')]);
+  const body = readFileSync(await dl.path(), 'utf8');
+  assert.equal(dl.suggestedFilename(), 'text-unwrapped.html');
+  assert.ok(!body.includes('<img') && !body.includes('Draft that must stay out'), 'blank copy has no live badge or draft');
+  assert.match(body, /<a class="visits" id="visits" hidden=""/);
+  assert.equal(env.counterHits().length, 1);
+  await env.ctx.close();
+});
+
+await test('blocked counter shows a visible fallback and formatting still works', async () => {
+  const env = await prodContext({ counter: 'fail' });
+  const p = await env.open(PROD_URL);
+  await p.waitForSelector('#visits .visits-off');
+  assert.equal(await p.textContent('#visits'), 'Site visits unavailable');
+  assert.equal(await p.getAttribute('#visits', 'href'), null, 'no statistics link while unavailable');
+  await p.fill('#source', 'Still <b>works</b>.');
+  await p.waitForTimeout(150);
+  assert.equal(await p.$eval('#preview', (e) => e.innerHTML), '<p>Still <strong>works</strong>.</p>');
+  await p.waitForTimeout(500);
+  assert.equal(env.counterHits().length, 1, 'no retries');
+  assert.deepEqual(env.errors, []);
+  await env.ctx.close();
+});
+
+await test('no counter request on other paths, other origins or local copies', async () => {
+  const env = await prodContext();
+  for (const url of [PROD_ORIGIN + '/', PROD_ORIGIN + '/story-to-rich-text/other.html', PROD_ORIGIN + '/story-to-rich-text-copy/',
+    'https://someone-else.github.io/story-to-rich-text/']) {
+    const p = await env.open(url);
+    await p.waitForTimeout(150);
+    assert.equal(await p.isVisible('#visits'), false, url);
+    assert.equal(await p.$('#visits img'), null, url);
+    await p.close();
+  }
+  const local = await env.open(appUrl);
+  await local.waitForTimeout(150);
+  assert.equal(await local.isVisible('#visits'), false);
+  await local.close();
+  assert.equal(env.counterHits().length, 0);
+  await env.ctx.close();
+});
+
+await test('a very large count stays fully readable in the header without overflow or hiding the actions', async () => {
+  const env = await prodContext({ count: '1,234,567,890', width: 190 });
+  const p = await env.open(PROD_URL);
+  await p.waitForFunction(() => { const i = document.querySelector('#visits img'); return i && i.complete && i.naturalWidth > 0; });
+  await p.fill('#source', Array(120).fill('A long text paragraph with <b>some formatting</b>.').join('\n\n'));
+  await p.waitForTimeout(200);
+  for (const [width, height] of [[1280,800],[1024,768],[900,600],[375,667],[390,844],[320,568],[667,375]]) {
+    await p.setViewportSize({ width, height });
+    if (width < 900) await p.click('#showPreviewBtn');
+    const m = await p.evaluate(() => {
+      const r = (el) => { const b = el.getBoundingClientRect(); return { top: b.top, bottom: b.bottom, left: b.left, right: b.right, w: b.width, h: b.height }; };
+      const img = document.querySelector('#visits img');
+      const h1 = document.querySelector('.brand h1');
+      return { page: document.documentElement.scrollHeight, sw: document.documentElement.scrollWidth,
+        badge: r(document.getElementById('visits')), img: r(img), natural: [img.naturalWidth, img.naturalHeight],
+        brand: r(document.querySelector('.brand')), mark: r(document.querySelector('.mark')), h1: r(h1),
+        h1Line: parseFloat(getComputedStyle(h1).lineHeight), preview: document.getElementById('preview').clientHeight,
+        actions: [r(document.getElementById('copyRichBtn')), r(document.getElementById('rtfBtn')), r(document.querySelector('#moreSave > summary'))] };
+    });
+    const ctx = JSON.stringify({ width, height, m });
+    assert.ok(m.sw <= width, 'horizontal overflow ' + ctx);
+    assert.ok(m.page <= height + 1, 'page scroll ' + ctx);
+    assert.ok(m.badge.left >= 0 && m.badge.right <= width - 8 && m.badge.right <= m.brand.right + 0.5 && m.badge.top >= 0, 'badge visible inside the gutter ' + ctx);
+    // The count is drawn at its native size: full width and 20px tall, never squeezed.
+    assert.deepEqual(m.natural, [190, 20], ctx);
+    assert.ok(Math.abs(m.img.w - 190) < 0.5 && Math.abs(m.img.h - 20) < 0.5, 'badge image at native readable size ' + ctx);
+    assert.ok(m.img.left >= m.badge.left - 0.5 && m.img.right <= m.badge.right + 0.5, 'badge image not clipped by its pill ' + ctx);
+    // The logo and heading keep their size; the badge wraps rather than overlapping them.
+    assert.ok(Math.abs(m.mark.w - 32) < 0.5 && Math.abs(m.mark.h - 32) < 0.5, 'logo size kept ' + ctx);
+    assert.ok(m.h1.h <= m.h1Line * 1.1, 'heading stays on one line ' + ctx);
+    assert.ok(m.badge.top >= m.h1.bottom - 0.5 || m.badge.left >= m.h1.right, 'badge does not overlap the heading ' + ctx);
+    assert.ok(m.preview >= 45, 'preview pane still usable ' + ctx);
+    for (const a of m.actions) assert.ok(a.top >= 0 && a.bottom <= height + 1 && a.left >= 0 && a.right <= width + 1, 'actions visible ' + ctx);
+  }
+  await env.ctx.close();
+});
+
 console.log('Privacy');
 
 await test('no network, storage or cookie use by the app during all of the above', async () => {
@@ -730,6 +906,9 @@ await test('Content-Security-Policy hashes match and block outgoing requests', a
   assert.equal(meta, expectedPolicy(appSource));
   assert.match(meta, /default-src 'none'/);
   assert.match(meta, /connect-src 'none'/);
+  assert.ok(meta.includes(`img-src ${COUNTER_IMAGE};`), 'images limited to the exact counter badge path');
+  const rest = meta.replace(`img-src ${COUNTER_IMAGE};`, '');
+  assert.ok(!/hits\.sh|https?:|\*|'self'|data:|blob:/.test(rest), 'no other remote, wildcard or local sources: ' + rest);
   assert.ok(!/unsafe-inline|unsafe-eval/.test(meta));
   // Fresh online context without instrumentation: CSP alone must stop these.
   const ctx = await browser.newContext();
@@ -757,8 +936,8 @@ await test('source has no external resources, storage, network or analytics code
     /sessionStorage/, /indexedDB/i, /sendBeacon/, /WebSocket/, /EventSource/, /serviceWorker/, /document\.cookie/, /\.innerHTML\s*=(?!.*source)/]) {
     assert.ok(!bad.test(appSource), String(bad));
   }
-  const urls = (appSource.match(/https?:\/\/[^\s"'`)<]*/g) || []).map((u) => u.replace(/[.,]+$/, ''));
-  const allowed = ['http://www.w3.org/1999/xhtml', 'http://', 'https://'];
+  const urls = (appSource.match(/https?:\/\/[^\s"'`)<]*/g) || []).map((u) => u.replace(/[.,;]+$/, ''));
+  const allowed = ['http://www.w3.org/1999/xhtml', 'http://', 'https://', COUNTER_IMAGE, COUNTER_SRC, COUNTER_STATS, PROD_ORIGIN];
   assert.deepEqual(urls.filter((u) => !allowed.includes(u)), []);
   assert.equal((appSource.match(/\.innerHTML\s*=/g) || []).length, 1, 'only the inert template parse uses innerHTML');
   assert.match(appSource, /tpl\.innerHTML = source;/);

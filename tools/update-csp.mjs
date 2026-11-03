@@ -8,6 +8,9 @@ import { fileURLToPath } from 'node:url';
 
 const file = fileURLToPath(new URL('../docs/index.html', import.meta.url));
 
+// The only remote resource: the shared site-visits badge, by exact path.
+export const COUNTER_IMAGE = 'https://hits.sh/brianmarkowitz.github.io/story-to-rich-text.svg';
+
 export function expectedPolicy(html) {
   // The page has one <style> in <head> and one <script> in <body>. The script
   // itself contains a <style> for exported files, so only <head> is searched
@@ -26,7 +29,7 @@ export function expectedPolicy(html) {
     `script-src '${script}'`,
     `style-src '${style}'`,
     "connect-src 'none'",
-    "img-src 'none'",
+    `img-src ${COUNTER_IMAGE}`,
     "font-src 'none'",
     "media-src 'none'",
     "object-src 'none'",

@@ -25,8 +25,11 @@ let browser;
 try {
   browser = await playwright.chromium.launch();
   const context = await browser.newContext({ acceptDownloads: true });
-  const page = await context.newPage();
   const origin = `http://127.0.0.1:${server.address().port}`;
+  // Local and offline copies must never contact the site-visits counter or anything else.
+  const external = [];
+  context.on('request', (r) => { if (/^https?:/.test(r.url()) && !r.url().startsWith(origin + '/')) external.push(r.url()); });
+  const page = await context.newPage();
   await page.goto(origin + '/');
   const draft = 'SYNTHETIC_PRIVATE_DRAFT_SENTINEL_82164';
   await page.locator('#source').fill(`<center><b>${draft}</b></center>\n\nA second paragraph.`);
@@ -70,6 +73,8 @@ try {
   await offline.locator('#saveTool').click();
   const again = await againPending;
   assert.ok(!readFileSync(await again.path(), 'utf8').includes('Fresh <b>offline</b> text.'));
+  assert.equal(await offline.locator('#visits').isVisible(), false, 'no counter in local copies');
+  assert.deepEqual(external, [], 'no external requests from local or offline pages');
   console.log('Hosted/offline tool download passed: blank copy, valid CSP, no draft or filename, no network; renamed offline copy converts and saves again.');
   await context.close();
 } finally {

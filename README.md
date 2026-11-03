@@ -17,11 +17,13 @@ The document download is a real `.rtf` with Unicode and formatting support. Rich
 
 ## Privacy and safety
 
-Conversion and detection run entirely on the device, using fixed rules and no AI. No uploads, accounts, analytics, cookies, autosave, storage, external libraries, fonts or images. Copy or download before closing; the tool does not save drafts.
+Conversion and detection run entirely on the device, using fixed rules and no AI. Your writing is never uploaded. There are no accounts, cookies, autosave, storage, external scripts, libraries or fonts. Copy or download before closing; the tool does not save drafts.
+
+The published page shows one public **Site visits** badge, a single SVG image from [Hits](https://github.com/silentsoft/hits). It counts every page load, including repeat visits, since Nov 3, 2026, so it is not a count of unique people. Only that fixed image address is requested, without a referrer, and only on `https://brianmarkowitz.github.io/story-to-rich-text/`. It never receives your writing, the page's query or the file name, and it isn't requested again while you type, copy or download. Hits says its counter doesn't use cookies or track IP addresses or user agents ([privacy policy](https://hits.sh/privacy/)). As with any hosted image, the counter service still sees the network request itself. Local, renamed and offline copies never load it, and exports never include it. If the counter is blocked or down, the badge says "Site visits unavailable" and formatting works as usual. Selecting the badge opens the hits.sh statistics page, a separate site with its own analytics.
 
 Untrusted HTML is read in an inert template. A new allowlisted DOM is built rather than attaching the input. Active/resource elements, event handlers and arbitrary styles are removed. Only safe formatting/alignment and absolute HTTP(S) links without credentials survive. Exported HTML has its own restrictive security policy.
 
-The app's Content Security Policy blocks outgoing connections and resources, and permits only its own script/style by hash. Browser spelling, autocorrect and writing suggestions are off in the source field.
+The app's Content Security Policy blocks outgoing connections (`connect-src 'none'`) and all other resources, permits only its own script/style by hash, and allows images only from the exact counter badge path. Browser spelling, autocorrect and writing suggestions are off in the source field.
 
 **Save this tool for offline use** captures a blank startup copy before typing. Saving it needs no network request and includes neither the later draft nor its filename. The saved file, `text-unwrapped.html`, works after renaming and reopening offline, with automatic settings and closed menus.
 
@@ -30,7 +32,7 @@ The app's Content Security Policy blocks outgoing connections and resources, and
 A single static page, `docs/index.html`, with no build step or runtime dependencies. `docs/.nojekyll` serves it directly on GitHub Pages.
 
 ```bash
-node tests/run-tests.mjs       # 62 conversion, detection, interface and privacy checks
+node tests/run-tests.mjs       # 67 conversion, detection, interface, counter and privacy checks
 node tests/http-download.mjs   # HTTP/offline download and blank-copy regression
 node tools/update-csp.mjs      # refresh hashes after changing inline script/style
 node tools/update-csp.mjs --check

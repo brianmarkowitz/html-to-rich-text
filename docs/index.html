@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-iOZbF7diG+ToPy4RD80L6bOCdsXz3WIOtGsbCLhUu98='; style-src 'sha256-WlccU8ePrGZrrJsgG82VlagmH23OxSZF8qt4/DMb62A='; connect-src 'none'; img-src 'none'; font-src 'none'; media-src 'none'; object-src 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; manifest-src 'none'; form-action 'none'; base-uri 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-MY2HqeygIm75jzuZlP2P7wKQXHO6zB9DMzjMLnfTELA='; style-src 'sha256-5zEWuR250ZDjRUiKuBAug6aZFxdlDMkIWn+aAB6V4UA='; connect-src 'none'; img-src https://hits.sh/brianmarkowitz.github.io/story-to-rich-text.svg; font-src 'none'; media-src 'none'; object-src 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; manifest-src 'none'; form-action 'none'; base-uri 'none'">
 <meta name="referrer" content="no-referrer">
-<meta name="description" content="Paste any text with inline HTML and typed line breaks and get clean, formatted text to copy or download. Runs entirely in your browser; nothing is uploaded or saved.">
+<meta name="description" content="Paste any text with inline HTML and typed line breaks and get clean, formatted text to copy or download. Your writing is formatted in your browser and never uploaded; the published page shows one hosted site-visits counter image.">
 <title>Text, Unwrapped</title>
 <style>
 :root {
@@ -49,8 +49,8 @@ body {
   background: var(--ink); color: #fff; padding: 8px 12px; border-radius: 8px; z-index: 10;
 }
 .skip:focus { left: 16px; }
-header.top { padding: 28px 0 8px; }
-.brand { display: flex; align-items: center; gap: 12px; }
+header.top { padding-top: 28px; padding-bottom: 8px; }
+.brand { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
 /* Folded-paper paragraph mark: a sheet with a dog-eared, sunny corner. */
 .mark {
   position: relative; display: inline-grid; place-items: center; flex: none;
@@ -70,6 +70,20 @@ h1 { margin: 0; font: 700 clamp(1.5rem, 3vw, 2rem)/1.15 var(--display); letter-s
   content: ""; position: absolute; z-index: -1; left: 2px; bottom: 0.02em;
   width: 62%; height: 0.24em; border-radius: 4px; background: var(--sun);
 }
+/* Shared site-visits badge, always at its natural, readable size. When the
+   row is too narrow it wraps below the heading instead of shrinking. */
+.visits {
+  margin-left: auto; flex: none; height: 28px;
+  display: inline-flex; align-items: center; padding: 3px 5px;
+  border: 1px solid var(--line); border-radius: 999px; background: var(--card);
+  box-shadow: 2px 2px 0 #173a2d14; overflow: hidden;
+  color: var(--ink-soft); font-size: 0.78rem; font-weight: 600; text-decoration: none; white-space: nowrap;
+}
+.brand h1 { flex: none; white-space: nowrap; }
+.visits[hidden] { display: none; }
+a.visits:hover { border-color: var(--line-strong); }
+.visits img { display: block; flex: none; height: 20px; width: auto; }
+.visits-off { padding: 0 6px; overflow: hidden; text-overflow: ellipsis; }
 .tagline { margin: 6px 0 0; color: var(--ink-soft); max-width: 46rem; }
 .privacy {
   display: flex; gap: 10px; align-items: flex-start;
@@ -265,6 +279,8 @@ details.more > summary { padding: 8px 4px; min-height: 40px; font-size: 0.86rem;
 @media (min-width: 900px) { .view-switch { display: none; } }
 @media (max-width: 420px) {
   .wrap { padding-left: 10px; padding-right: 10px; }
+  .brand { row-gap: 4px; }
+  .visits { height: 24px; padding: 1px 4px; }
   .tagline { font-size: 0.85rem; }
   .auto-summary { padding: 7px 9px; font-size: 0.78rem; }
   details.adjust > summary { padding: 10px 8px; font-size: 0.8rem; }
@@ -316,6 +332,9 @@ details.more > summary { padding: 8px 4px; min-height: 40px; font-size: 0.86rem;
   <div class="brand">
     <span class="mark" aria-hidden="true">¶</span>
     <h1>Text, <span class="un">Unwrapped</span></h1>
+    <a class="visits" id="visits" hidden href="https://hits.sh/brianmarkowitz.github.io/story-to-rich-text/"
+      target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer"
+      title="Site visits: every page load counts, including repeat visits, since Nov 3, 2026. This is not a count of unique people. Opens visit statistics on hits.sh."><span class="sr">Site visits since Nov 3, 2026, counting repeat visits, not unique people. Opens statistics on hits.sh.</span></a>
   </div>
   <p class="tagline">Paste any text. The formatting is handled for you.</p>
   <p class="privacy"><span class="dot" aria-hidden="true"></span><span>Your writing stays on your device. No uploads or AI processing.</span></p>
@@ -1429,6 +1448,34 @@ with a little space</b> around them.`;
     e.preventDefault();
     saveFile('text-unwrapped.html', 'text/html;charset=utf-8', blankToolHTML);
   });
+
+  // Shared site-visits counter: one fixed image, only on the published page,
+  // started after the blank tool is captured so saved copies never load it.
+  // It never sees the writing, the address's query or the file name, and
+  // formatting never waits on it.
+  const COUNTER_ORIGIN = 'https://brianmarkowitz.github.io';
+  const COUNTER_PATHS = ['/story-to-rich-text/', '/story-to-rich-text/index.html'];
+  const COUNTER_SRC = 'https://hits.sh/brianmarkowitz.github.io/story-to-rich-text.svg?label=Site%20visits&color=226247&labelColor=173a2d';
+  function showVisits() {
+    if (location.origin !== COUNTER_ORIGIN || !COUNTER_PATHS.includes(location.pathname)) return;
+    const box = $('visits');
+    const img = document.createElement('img');
+    img.referrerPolicy = 'no-referrer';
+    img.decoding = 'async';
+    img.alt = 'Site visits counter';
+    img.addEventListener('error', () => {
+      const off = document.createElement('span');
+      off.className = 'visits-off';
+      off.textContent = 'Site visits unavailable';
+      box.removeAttribute('href');
+      box.title = 'The site visits counter couldn’t load. Formatting works as usual.';
+      box.replaceChildren(off);
+    }, { once: true });
+    img.src = COUNTER_SRC;
+    box.append(img);
+    box.hidden = false;
+  }
+  showVisits();
 
   window.addEventListener('beforeunload', (e) => {
     if (source.value.trim()) { e.preventDefault(); e.returnValue = ''; }
