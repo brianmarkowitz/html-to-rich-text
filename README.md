@@ -1,83 +1,43 @@
 # Story to Rich Text
 
-A small, private-by-design web page that turns a story typed with inline HTML
-(`<b>`, `<i>`, `<center>`, …) but no paragraph tags into clean rich text,
-without losing your line breaks or blank-line paragraphs.
+[Open the converter](https://brianmarkowitz.github.io/story-to-rich-text/).
+Paste a story, check the preview, then **Copy formatted story** or **Download document**. No HTML knowledge or setup is needed.
 
-Use [Story to Rich Text](https://brianmarkowitz.github.io/story-to-rich-text/),
-or open `docs/index.html` in a browser.
+## Automatic formatting
 
-## What it does
+- Recognizes ordinary HTML and common escaped formatting codes, including mixed input. Formatting is rebuilt safely; it never executes pasted code.
+- Keeps blank-line paragraphs and scene breaks, even without paragraph tags.
+- Uses conservative rules to join clearly hard-wrapped prose. Poems, dialogue, lists and uncertain line breaks are kept. The original pasted text is never rewritten.
+- Uses readable paragraph spacing. Appearance is a preference, so book-style indentation and compact spacing remain optional choices.
+- **Adjust formatting** is closed by default. Manual choices stay in effect until **Use automatic settings** restores the defaults.
 
-- A single Enter becomes a line break. A blank line starts a new paragraph.
-  This holds even when a newline falls inside `<b>…</b>` or other formatting.
-- Existing HTML blocks (`<p>`, headings, `<blockquote>`, lists, `<br>`) are
-  respected. Indentation between them doesn't create extra gaps.
-- Supported formatting: bold, italic, underline, strikethrough, subscript,
-  superscript, code, headings, centring and `text-align`, lists, quotes and
-  `http(s)` links.
-- Options: format escaped tags (`&lt;b&gt;`) or show all tags as plain text;
-  keep or join single line breaks; paragraph spacing (spaced, book-style
-  indent, compact); keep extra blank lines as scene breaks (each blank line
-  beyond the first is kept, up to 50, in the preview and every export).
-- **Copy rich text** puts both `text/html` and `text/plain` on the clipboard
-  so Word and Google Docs keep the breaks and formatting. If the browser
-  refuses, the page says so, and **Select preview** lets you copy by hand.
-- Downloads: a real `.rtf` (Unicode, paragraph and inline formatting), a
-  standalone sanitized `.html` and plain `.txt`. You can also print or save
-  as PDF.
+Copy and download controls stay at the bottom of the viewport. Long stories scroll inside the editor and preview. Phones have **Edit story** and **See preview** views instead of two tall, stacked panels. **More ways to save** contains plain-text copying, manual selection, HTML/text downloads, printing and the offline tool.
 
-## Privacy
+The document download is a real `.rtf` with Unicode and formatting support. Rich copying provides both HTML and plain text; if the browser refuses, the tool reports that and offers manual selection.
 
-- Your writing stays in the open tab. There are no uploads, no accounts, no
-  saving (no localStorage, cookies or autosave), no analytics and no AI
-  processing of your text. Copy or download your result before closing.
-- The page loads nothing from the network: no external fonts, scripts or
-  images. Its Content-Security-Policy (`default-src 'none'`,
-  `connect-src 'none'`, with hashes for its own inline script and style)
-  blocks outgoing requests even if something tried to make one.
-- Pasted HTML is parsed in an inert `<template>` and read from there. A new
-  DOM is built from an allowlist, so the raw input is never attached to the
-  page. Scripts, styles, frames, embeds, SVG/MathML, forms, media, images,
-  meta/link/base and templates are dropped with their contents. Event
-  attributes, ids, classes and arbitrary styles are dropped too. Only
-  validated alignment and basic text formatting are kept. Links must be
-  absolute `http://` or `https://` URLs without credentials. Exported HTML
-  comes from the same clean model and has its own restrictive CSP.
-- The browser's spelling, autocorrect and writing suggestions are turned off
-  in the source box.
-- "Save this tool for offline use" downloads a blank copy captured when the
-  tool starts, before any typing. It works without another network request
-  and never includes your draft, even after the file has been renamed.
+## Privacy and safety
+
+Conversion and detection run entirely on the device, using fixed rules and no AI. No uploads, accounts, analytics, cookies, autosave, storage, external libraries, fonts or images. Copy or download before closing; the tool does not save drafts.
+
+Untrusted HTML is read in an inert template. A new allowlisted DOM is built rather than attaching the input. Active/resource elements, event handlers and arbitrary styles are removed. Only safe formatting/alignment and absolute HTTP(S) links without credentials survive. Exported HTML has its own restrictive security policy.
+
+The app's Content Security Policy blocks outgoing connections and resources, and permits only its own script/style by hash. Browser spelling, autocorrect and writing suggestions are off in the source field.
+
+**Save this tool for offline use** captures a blank startup copy before typing. Saving it needs no network request and includes neither the later draft nor its filename. The saved file works after renaming and reopening offline, with automatic settings and closed menus.
 
 ## Development
 
-There's no build step and no runtime dependency. Everything is in
-`docs/index.html`, and `docs/.nojekyll` lets GitHub Pages serve it as is.
+A single static page, `docs/index.html`, with no build step or runtime dependencies. `docs/.nojekyll` serves it directly on GitHub Pages.
 
 ```bash
-node tests/run-tests.mjs      # 51 browser tests (Playwright + Chromium, offline)
-node tests/http-download.mjs  # Hosted-page download, blank bytes, no draft upload
-node tools/update-csp.mjs     # re-hash the CSP after editing the inline <script> or <style>
+node tests/run-tests.mjs       # 62 conversion, detection, interface and privacy checks
+node tests/http-download.mjs   # HTTP/offline download and blank-copy regression
+node tools/update-csp.mjs      # refresh hashes after changing inline script/style
+node tools/update-csp.mjs --check
 ```
 
-The tests use an already-installed Playwright, either local or global
-(`npm root -g`), with its Chromium. They use only synthetic text. On macOS
-they also open the generated RTF with `textutil` to confirm that a real RTF
-reader sees the right text, centring, bold and italic.
+Tests use an installed local or global Playwright with Chromium, synthetic text only, and macOS `textutil` when available to read back real RTF. Layout checks include desktop, small phones and landscape, with long stories and always-visible actions.
 
-## Limitations
+Automatic detection cannot know an author's intention for every line break. It keeps uncertain breaks; optional adjustments remain available. Tables flatten to paragraphs, formatting inside preformatted blocks becomes text, and custom fonts/colours/sizes are omitted. Clipboard appearance also depends on the receiving editor.
 
-- Tables, definition lists and other uncommon blocks become plain
-  paragraphs. Fonts, colours and sizes are deliberately dropped.
-- Formatting inside `<pre>` is reduced to its text.
-- Pasting into rich editors depends on the editor. Word and Google Docs read
-  the HTML clipboard format, and the RTF download is the fallback.
-- When pasted HTML contains `style="…"` attributes, Chrome logs a console
-  notice that the CSP refused to apply them. That's the policy working as
-  intended. Alignment is read safely from the attribute text.
-
-## Credits
-
-The code was developed and reviewed with AI assistance. The app itself uses
-no AI when it converts text.
+The code was developed and reviewed with AI assistance. No AI processes stories when the tool is used.

@@ -33,8 +33,10 @@ try {
   await page.locator('#preview strong').waitFor();
   // A filename in a prior download status must not leak into the saved tool.
   const storyPending = page.waitForEvent('download', { timeout: 10000 });
+  await page.locator('#moreSave > summary').click();
   await page.locator('#txtBtn').click();
   await storyPending;
+  assert.equal(await page.locator('#moreSave').evaluate(e => e.open), true, 'saving a file must leave other save choices reachable');
   assert.ok((await page.locator('#status').textContent()).includes('synthetic-private-draft'));
   const requestsBefore = requests.length;
   const pending = page.waitForEvent('download', { timeout: 10000 });
@@ -55,12 +57,16 @@ try {
   assert.equal(await offline.locator('#source').inputValue(), '');
   assert.equal(await offline.locator('#preview').textContent(), '');
   assert.equal(await offline.locator('#status').textContent(), '');
+  assert.equal(await offline.locator('#htmlMode').inputValue(), 'auto');
+  assert.equal(await offline.locator('#adjust').evaluate(e => e.open), false);
+  assert.equal(await offline.locator('#moreSave').evaluate(e => e.open), false);
   await offline.locator('#source').fill('Fresh <b>offline</b> story.\n\nNext paragraph.');
   await offline.locator('#preview strong').waitFor();
   assert.equal(await offline.locator('#preview p').count(), 2);
   assert.equal(await offline.locator('#preview strong').textContent(), 'offline');
   // Saving the renamed tool again remains blank and independent of its draft.
   const againPending = offline.waitForEvent('download', { timeout: 10000 });
+  await offline.locator('#moreSave > summary').click();
   await offline.locator('#saveTool').click();
   const again = await againPending;
   assert.ok(!readFileSync(await again.path(), 'utf8').includes('Fresh <b>offline</b> story.'));

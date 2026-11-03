@@ -77,6 +77,12 @@ async function openApp(init) {
 
 const page = await openApp();
 
+async function reveal(p, selector) {
+  const id = ['#htmlMode', '#lineBreaks', '#keepExtra', '#spacing', '#autoBtn'].includes(selector) ? 'adjust' : 'moreSave';
+  if (!(await p.$eval('#' + id, (e) => e.open))) await p.locator('#' + id + ' > summary').click();
+}
+
+
 // Run the converter in the page and return compact HTML (default margins removed).
 async function h(input, opts = {}, spacing = 'spaced') {
   return page.evaluate(([input, opts, spacing]) => {
@@ -203,6 +209,82 @@ await test('plain text export: paragraphs, breaks, lists and links', async () =>
   assert.equal(plain, 'T\n\nOne\ntwo\n\n• a\n• b\n\n2. c\n\nsite (https://example.com/x)\n');
 });
 
+
+console.log('Automatic detection');
+const automatically = (input, preferences = {}) => run(([input, preferences]) => {
+  const S = window.StoryToRichText;
+  const options = S.resolveOptions(input, preferences);
+  const blocks = S.convert(input, options);
+  return { options, html: S.renderHTML(blocks, options), text: S.renderPlain(blocks) };
+}, [input, preferences]);
+const prose = 'The old station stood at the edge of the village beside the road that followed the river through the valley and past the orchard where the early light settled on the leaves while a patient gardener carried a basket between the trees and watched the morning train disappear around the bend before turning back toward the little house with the open door and the warm kitchen waiting inside.';
+const wrap = (text, width = 74) => {
+  const lines = []; let line = '';
+  for (const word of text.split(' ')) {
+    if (line && line.length + word.length + 1 > width) { lines.push(line); line = word; }
+    else line += (line ? ' ' : '') + word;
+  }
+  lines.push(line); return lines.join('\n');
+};
+await test('auto preserves paragraphs without p tags and recognizes centered bold headings', async () => {
+  const r = await automatically('First line\nsecond line\n\n<center><b>Later</b></center>\n\n<i>A fresh paragraph.</i>');
+  assert.equal(r.options.htmlMode, 'html');
+  assert.equal(r.options.lineBreaks, 'keep');
+  assert.match(r.html, /First line<br>second line/);
+  assert.match(r.html, /text-align:center.*<strong>Later<\/strong>/);
+  assert.equal(r.text, 'First line\nsecond line\n\nLater\n\nA fresh paragraph.\n');
+});
+await test('auto handles escaped and mixed tags safely, including numeric entities', async () => {
+  for (const encoded of ['&lt;i&gt;quiet&lt;/i&gt;', '&#60;i&#62;quiet&#60;/i&#62;']) {
+    const r = await automatically('<b>Morning</b> and ' + encoded);
+    assert.equal(r.options.htmlMode, 'escaped');
+    assert.match(r.html, /<strong>Morning<\/strong> and <em>quiet<\/em>/);
+  }
+  const unsafe = await automatically('&lt;script&gt;alert(1)&lt;/script&gt;&lt;b&gt;Safe&lt;/b&gt;');
+  assert.ok(!unsafe.html.includes('alert'));
+  assert.match(unsafe.html, /<strong>Safe<\/strong>/);
+});
+await test('auto preserves ordinary angle-bracket prose and decodes normal entities once', async () => {
+  assert.equal((await automatically('A note for <reader>: 2 < 3 & 5 > 4.')).text, 'A note for <reader>: 2 < 3 & 5 > 4.\n');
+  assert.equal((await automatically('Caf&eacute; &amp; tea — 😀')).text, 'Café & tea — 😀\n');
+  const r = await automatically('&amp;lt;i&amp;gt;an example&amp;lt;/i&amp;gt;');
+  assert.ok(!r.html.includes('<em>'));
+  const code = await automatically('<code>&lt;b&gt;example&lt;/b&gt;</code>');
+  assert.ok(!code.html.includes('<strong>'));
+});
+await test('auto joins strongly evidenced wrapped prose without changing any words', async () => {
+  const r = await automatically(wrap(prose));
+  assert.equal(r.options.lineBreaks, 'join');
+  assert.equal(r.text, prose + '\n');
+  assert.ok(!r.html.includes('<br>'));
+});
+await test('auto keeps poems, dialogue, lists, and mixed or uncertain line breaks', async () => {
+  const inputs = ['a quiet shore\na rising tide\na distant light\na place to hide',
+    '“Are you ready?”\n“Yes, I am.”\n“Then let’s go.”\n“All right.”',
+    '• One thing\n• Another thing\n• One more thing',
+    'One fairly long line of prose that does not form a predictable pattern\na much shorter line\nSomething Else',
+    wrap(prose) + '\n\na quiet shore\na rising tide'];
+  for (const input of inputs) {
+    const r = await automatically(input);
+    assert.equal(r.options.lineBreaks, 'keep', input);
+    assert.equal(r.text, input + '\n');
+  }
+  const list = await automatically('<ul><li>one\ntwo</li></ul>\n' + wrap(prose));
+  assert.equal(list.options.lineBreaks, 'keep');
+});
+await test('auto keeps scene gaps but ignores indentation between existing HTML blocks', async () => {
+  const input = 'Before\n\n\n\nAfter';
+  assert.equal((await automatically(input)).text, input + '\n');
+  assert.equal((await automatically('<p>Before</p>\n\n\n\n<p>After</p>')).text, 'Before\n\nAfter\n');
+});
+await test('explicit choices override detection while paragraph appearance remains a preference', async () => {
+  const r = await automatically('&lt;b&gt;Word&lt;/b&gt;\nnext', { htmlMode: 'text', lineBreaks: 'join', keepExtra: 'remove', spacing: 'indented' });
+  assert.equal(r.options.automatic, false);
+  assert.equal(r.options.spacing, 'indented');
+  assert.ok(!r.html.includes('<strong>'));
+  assert.equal((await automatically(wrap(prose), { lineBreaks: 'keep' })).options.lineBreaks, 'keep');
+});
+
 console.log('Security');
 
 await test('links: only absolute http(s) kept; dangerous or relative URLs dropped', async () => {
@@ -318,7 +400,7 @@ console.log('Interface');
 const page2 = await openApp();
 await test('privacy banner states the conversion promise without overclaiming', async () => {
   assert.equal((await page2.textContent('.privacy')).trim(),
-    'Your writing stays in this tab. No uploads, accounts or AI processing. Copy or download your result before closing.');
+    'Your writing stays on your device. No uploads or AI processing.');
   assert.ok(!/erase|no AI is used/i.test(appSource));
 });
 await test('starts empty with outputs disabled', async () => {
@@ -363,17 +445,17 @@ await test('live preview updates while typing', async () => {
   assert.equal(await page2.$eval('#preview', (e) => e.innerHTML), '<p>First line<br>second <strong>bold</strong></p><p>Next.</p>');
   assert.match(await page2.textContent('#previewCount'), /2 paragraphs · 5 words/);
 });
-await test('escaped-tag notice offers one-click formatting', async () => {
-  await page2.fill('#source', '&lt;b&gt;Hi&lt;/b&gt; there');
+await test('escaped formatting is detected without opening settings or changing the source', async () => {
+  const input = '&lt;b&gt;Hi&lt;/b&gt; there';
+  await page2.fill('#source', input);
   await page2.waitForTimeout(150);
-  assert.ok(await page2.isVisible('#escapedNotice'));
-  await page2.click('#escapedBtn');
-  assert.equal(await page2.inputValue('#htmlMode'), 'escaped');
+  assert.equal(await page2.inputValue('#htmlMode'), 'auto');
+  assert.equal(await page2.inputValue('#source'), input);
   assert.equal(await page2.$eval('#preview', (e) => e.innerHTML), '<p><strong>Hi</strong> there</p>');
-  assert.ok(!(await page2.isVisible('#escapedNotice')));
-  await page2.selectOption('#htmlMode', 'html');
+  assert.match(await page2.textContent('#autoSummary'), /Formatting restored/);
 });
 await test('spacing choice changes the preview style', async () => {
+  await reveal(page2, '#spacing');
   await page2.selectOption('#spacing', 'indented');
   assert.equal(await page2.$eval('#preview', (e) => e.className), 'preview sp-indented');
   await page2.selectOption('#spacing', 'spaced');
@@ -381,6 +463,7 @@ await test('spacing choice changes the preview style', async () => {
 await test('select preview selects the formatted text', async () => {
   await page2.fill('#source', 'Alpha\n\nBeta');
   await page2.waitForTimeout(150);
+  await reveal(page2, '#selectBtn');
   await page2.click('#selectBtn');
   assert.equal(await page2.evaluate(() => window.getSelection().toString().replace(/\s+/g, ' ').trim()), 'Alpha Beta');
   assert.match(await page2.textContent('#status'), /Preview selected/);
@@ -400,6 +483,7 @@ await test('copy rich text writes text/html and text/plain via ClipboardItem', a
   assert.ok(clip['text/html'].includes('Line one<br>Line two'));
   assert.equal(clip['text/plain'], 'Title\n\nLine one\nLine two\n\nNext\n');
   assert.match(await p.textContent('#status'), /Copied with formatting/);
+  await reveal(p, '#copyPlainBtn');
   await p.click('#copyPlainBtn');
   await p.waitForFunction(() => !window.__clip['text/html']);
   assert.match(await p.textContent('#status'), /Copied as plain text/);
@@ -448,6 +532,7 @@ await test('unsupported clipboard is reported truthfully', async () => {
 });
 
 async function downloadFrom(p, selector) {
+  if (['#htmlBtn', '#txtBtn', '#saveTool'].includes(selector)) await reveal(p, selector);
   const [dl] = await Promise.all([p.waitForEvent('download'), p.click(selector)]);
   const path = join(work, dl.suggestedFilename());
   await dl.saveAs(path);
@@ -498,16 +583,20 @@ await test('edit then immediately export/copy uses the latest text, not a stale 
   await p.close();
 });
 await test('five blank lines with "keep extra" show four spacers in the preview and .txt download', async () => {
-  await page2.check('#keepExtra');
+  await reveal(page2, '#keepExtra');
+  await page2.selectOption('#keepExtra', 'keep');
   await page2.fill('#source', 'Before.\n\n\n\n\n\nAfter.');
   await page2.waitForTimeout(150);
   assert.equal(await page2.$$eval('#preview p.spacer', (e) => e.length), 4);
+  await reveal(page2, '#txtBtn');
   const [dl] = await Promise.all([page2.waitForEvent('download'), page2.click('#txtBtn')]);
   const path = join(work, 'spacers.txt');
   await dl.saveAs(path);
   assert.equal(readFileSync(path, 'utf8'), 'Before.\n\n\n\n\n\nAfter.\n');
-  await page2.uncheck('#keepExtra');
+  await reveal(page2, '#keepExtra');
+  await page2.selectOption('#keepExtra', 'remove');
   assert.equal(await page2.$$eval('#preview p.spacer', (e) => e.length), 0);
+  await page2.selectOption('#keepExtra', 'auto');
 });
 await test('word count separates paragraphs and line breaks', async () => {
   await page2.fill('#source', 'Alpha\nBeta\n\nGamma<br>Delta<h2>Epsilon</h2><ul><li>Zeta</li><li>Eta</li></ul>');
@@ -547,6 +636,86 @@ await test('form controls are labelled and the page has no horizontal scroll on 
   await page2.setViewportSize({ width: 1280, height: 800 });
 });
 
+
+await test('default UI hides technical choices and optional save formats', async () => {
+  const p = await openApp();
+  assert.equal(await p.$eval('#adjust', e => e.open), false);
+  assert.equal(await p.$eval('#moreSave', e => e.open), false);
+  assert.equal(await p.isVisible('#htmlMode'), false);
+  assert.equal(await p.isVisible('#copyPlainBtn'), false);
+  assert.equal(await p.inputValue('#htmlMode'), 'auto');
+  assert.equal(await p.inputValue('#lineBreaks'), 'auto');
+  assert.equal(await p.inputValue('#keepExtra'), 'auto');
+  assert.equal(await p.textContent('#copyRichBtn'), 'Copy formatted story');
+  assert.equal(await p.textContent('#rtfBtn'), 'Download document');
+  await p.close();
+});
+await test('settings open with the keyboard, manual choices persist, and automatic reset works', async () => {
+  const p = await openApp();
+  await p.locator('#adjust > summary').focus();
+  await p.keyboard.press('Enter');
+  assert.equal(await p.$eval('#adjust', e => e.open), true);
+  await p.selectOption('#htmlMode', 'text');
+  await p.selectOption('#lineBreaks', 'join');
+  await p.selectOption('#keepExtra', 'remove');
+  await p.selectOption('#spacing', 'indented');
+  const input = '<b>Literal</b>\nnext\n\n\nEnd';
+  await p.fill('#source', input);
+  await p.waitForTimeout(150);
+  assert.equal(await p.inputValue('#source'), input);
+  assert.equal(await p.inputValue('#htmlMode'), 'text');
+  assert.ok(!(await p.$eval('#preview', e => e.innerHTML)).includes('<strong>'));
+  await reveal(p, '#autoBtn');
+  await p.click('#autoBtn');
+  assert.equal(await p.inputValue('#htmlMode'), 'auto');
+  assert.equal(await p.inputValue('#lineBreaks'), 'auto');
+  assert.equal(await p.inputValue('#keepExtra'), 'auto');
+  assert.equal(await p.inputValue('#spacing'), 'spaced');
+  assert.equal(await p.$eval('#adjust', e => e.open), false);
+  assert.equal(await p.inputValue('#source'), input);
+  assert.match(await p.$eval('#preview', e => e.innerHTML), /<strong>Literal<\/strong><br>next/);
+  await p.close();
+});
+await test('copy and document actions remain in the viewport at desktop and phone sizes', async () => {
+  const p = await openApp();
+  await p.fill('#source', Array(150).fill('A long story paragraph with <b>some formatting</b>.').join('\n\n'));
+  await p.waitForTimeout(200);
+  for (const [width, height] of [[1280,800],[1024,768],[900,600],[375,667],[390,844],[320,568],[667,375]]) {
+    await p.setViewportSize({ width, height });
+    if (width < 900) await p.click('#showPreviewBtn');
+    const metrics = await p.evaluate(() => {
+      const bounds = el => { const r = el.getBoundingClientRect(); return { top:r.top, bottom:r.bottom, left:r.left, right:r.right }; };
+      return { height:innerHeight, width:innerWidth, page:document.documentElement.scrollHeight,
+        scrollWidth:document.documentElement.scrollWidth,
+        actions:[document.getElementById('copyRichBtn'),document.getElementById('rtfBtn'),document.querySelector('#moreSave > summary')].map(bounds),
+        previewHeight:document.getElementById('preview').clientHeight,
+        previewScroll:document.getElementById('preview').scrollHeight };
+    });
+    assert.ok(metrics.page <= height + 1, JSON.stringify({width,height,metrics}));
+    assert.ok(metrics.scrollWidth <= width, 'horizontal overflow at ' + width);
+    for (const rect of metrics.actions) assert.ok(rect.top >= 0 && rect.bottom <= height + 1 && rect.left >= 0 && rect.right <= width + 1, JSON.stringify({width,height,rect}));
+    assert.ok(metrics.previewHeight >= 45, JSON.stringify({width,height,metrics}));
+    assert.ok(metrics.previewScroll > metrics.previewHeight, 'long preview scrolls inside its pane');
+  }
+  await p.close();
+});
+await test('phone view switch keeps the original text and manual selection reveals the preview', async () => {
+  const p = await openApp();
+  await p.setViewportSize({width:375,height:667});
+  await p.fill('#source', 'First\n\nSecond');
+  await p.waitForTimeout(150);
+  assert.equal(await p.isVisible('#source'), true);
+  await p.click('#showPreviewBtn');
+  assert.equal(await p.isVisible('#source'), false);
+  assert.equal(await p.isVisible('#preview'), true);
+  await p.click('#showSourceBtn');
+  assert.equal(await p.inputValue('#source'), 'First\n\nSecond');
+  await reveal(p, '#selectBtn');
+  await p.click('#selectBtn');
+  assert.equal(await p.isVisible('#preview'), true);
+  assert.equal(await p.evaluate(() => getSelection().toString().replace(/\s+/g,' ').trim()), 'First Second');
+  await p.close();
+});
 console.log('Privacy');
 
 await test('no network, storage or cookie use by the app during all of the above', async () => {
