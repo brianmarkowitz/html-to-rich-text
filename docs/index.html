@@ -1,0 +1,1173 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-MdOte2Ip24A5qBTVj3reD+9yYhvWJAIT7zENWimZL4Q='; style-src 'sha256-RnTub8OMrl2cmy9S2uSPOO7cPtvwtaK2PfYjwSKRJHo='; connect-src 'none'; img-src 'none'; font-src 'none'; media-src 'none'; object-src 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; manifest-src 'none'; form-action 'none'; base-uri 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="description" content="Turn a story with inline HTML and typed line breaks into clean rich text. Runs entirely in your browser; nothing is uploaded or saved.">
+<title>Story to Rich Text</title>
+<style>
+:root {
+  color-scheme: light;
+  --paper: #f6f1e7;
+  --paper-deep: #efe8da;
+  --card: #fffdf8;
+  --ink: #1e2320;
+  --ink-soft: #3f4742;
+  --muted: #646b66;
+  --line: #ddd4c3;
+  --line-strong: #c9bea9;
+  --accent: #1d6b5e;
+  --accent-hover: #155447;
+  --accent-soft: #e2eee8;
+  --warn-soft: #fbf0d9;
+  --warn-ink: #6b4a12;
+  --err-ink: #8a3426;
+  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --radius: 12px;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font: 16px/1.5 var(--sans);
+}
+.wrap { max-width: 1240px; margin: 0 auto; padding: 0 16px; }
+.skip {
+  position: absolute; left: -9999px; top: 8px;
+  background: var(--ink); color: #fff; padding: 8px 12px; border-radius: 8px; z-index: 10;
+}
+.skip:focus { left: 16px; }
+header.top { padding: 28px 0 8px; }
+.brand { display: flex; align-items: center; gap: 12px; }
+.mark {
+  display: inline-grid; place-items: center; flex: none;
+  width: 40px; height: 40px; border-radius: 50%;
+  background: var(--accent); color: #fff;
+  font: 600 22px/1 var(--serif);
+}
+h1 { margin: 0; font: 600 clamp(1.5rem, 3vw, 2rem)/1.15 var(--serif); letter-spacing: -0.01em; }
+.tagline { margin: 6px 0 0; color: var(--ink-soft); max-width: 46rem; }
+.privacy {
+  display: flex; gap: 10px; align-items: flex-start;
+  margin: 16px 0 0; padding: 12px 14px;
+  background: var(--accent-soft); border: 1px solid #c6ddd3; border-radius: var(--radius);
+  color: #1b3d35; font-size: 0.95rem; max-width: 60rem;
+}
+.privacy strong { color: #123229; }
+.dot { flex: none; width: 10px; height: 10px; margin-top: 6px; border-radius: 50%; background: var(--accent); }
+
+.options {
+  display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: flex-end;
+  margin: 20px 0 16px; padding: 14px 16px;
+  background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+}
+.options legend { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
+.field { display: flex; flex-direction: column; gap: 4px; min-width: 12rem; flex: 1 1 12rem; }
+.field label, .check label { font-size: 0.85rem; font-weight: 600; color: var(--ink-soft); }
+select {
+  font: inherit; color: var(--ink); background: var(--paper);
+  border: 1px solid var(--line-strong); border-radius: 8px;
+  padding: 8px 10px; min-height: 40px;
+}
+.check { display: flex; align-items: center; gap: 8px; min-height: 40px; flex: 1 1 14rem; }
+.check input { width: 18px; height: 18px; accent-color: var(--accent); margin: 0; }
+.check label { font-weight: 500; color: var(--ink); font-size: 0.95rem; }
+
+.panels { display: grid; grid-template-columns: 1fr; gap: 16px; }
+@media (min-width: 900px) { .panels { grid-template-columns: 1fr 1fr; } }
+.panel {
+  display: flex; flex-direction: column; min-width: 0;
+  background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+  overflow: hidden;
+}
+.panel-head {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 12px 14px; border-bottom: 1px solid var(--line); background: #fcf9f2;
+}
+.panel-head h2, .panel-head label.h2 { margin: 0; font: 600 1.05rem/1.2 var(--sans); color: var(--ink); }
+.hint { margin: 2px 0 0; font-size: 0.85rem; color: var(--muted); }
+.row { display: flex; flex-wrap: wrap; gap: 8px; }
+
+button {
+  font: inherit; font-size: 0.93rem; font-weight: 600;
+  min-height: 40px; padding: 8px 14px;
+  border-radius: 8px; border: 1px solid var(--line-strong);
+  background: var(--card); color: var(--ink); cursor: pointer;
+}
+button:hover:not(:disabled) { background: var(--paper-deep); }
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+button.primary:hover:not(:disabled) { background: var(--accent-hover); }
+button.quiet { border-color: transparent; background: transparent; color: var(--ink-soft); }
+button.quiet:hover:not(:disabled) { background: var(--paper-deep); }
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+button.emph { outline: 2px solid var(--accent); outline-offset: 2px; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+textarea:focus-visible, .preview:focus-visible { outline-offset: -3px; }
+
+textarea {
+  display: block; width: 100%; min-height: 58vh; flex: 1;
+  margin: 0; padding: 16px; border: 0; resize: vertical;
+  background: var(--card); color: var(--ink);
+  font: 15px/1.65 var(--mono); tab-size: 4;
+}
+textarea::placeholder { color: #8b918c; }
+
+.preview {
+  flex: 1; min-height: 58vh; max-height: 78vh; overflow: auto;
+  padding: 20px 24px;
+  font: 18px/1.65 var(--serif); color: var(--ink);
+  overflow-wrap: anywhere;
+}
+.preview:empty::before {
+  content: "Your formatted story will appear here as you type.";
+  color: #8b918c; font: italic 1rem/1.5 var(--serif);
+}
+.preview > :first-child { margin-top: 0; }
+.preview p { margin: 0 0 1em; }
+.preview.sp-indented p, .preview.sp-compact p { margin: 0; }
+.preview.sp-indented p + p { text-indent: 1.5em; }
+.preview.sp-indented :is(h1,h2,h3,h4,h5,h6,blockquote,ul,ol,pre,hr) + p,
+.preview.sp-compact :is(h1,h2,h3,h4,h5,h6,blockquote,ul,ol,pre,hr) + p { margin-top: 0.6em; }
+.preview p.spacer { min-height: 1.65em; }
+.preview h1, .preview h2, .preview h3, .preview h4, .preview h5, .preview h6 { font-family: var(--serif); line-height: 1.25; margin: 1.1em 0 0.5em; }
+.preview h1 { font-size: 1.7em; } .preview h2 { font-size: 1.45em; } .preview h3 { font-size: 1.25em; }
+.preview h4, .preview h5, .preview h6 { font-size: 1.05em; }
+.preview blockquote { margin: 0 0 1em 1.25em; padding-left: 1em; border-left: 3px solid var(--line-strong); color: var(--ink-soft); }
+.preview ul, .preview ol { margin: 0 0 1em; padding-left: 1.6em; }
+.preview li > p { margin: 0 0 0.4em; }
+.preview pre { font: 0.85em/1.5 var(--mono); white-space: pre-wrap; background: var(--paper); padding: 10px 12px; border-radius: 8px; margin: 0 0 1em; }
+.preview code { font: 0.88em var(--mono); }
+.preview hr { border: 0; border-top: 1px solid var(--line-strong); margin: 1.5em auto; width: 40%; }
+.preview a { color: var(--accent); text-underline-offset: 2px; }
+.preview .al-left { text-align: left; } .preview .al-right { text-align: right; }
+.preview .al-center { text-align: center; } .preview .al-justify { text-align: justify; }
+
+.panel-foot {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 10px 14px; border-top: 1px solid var(--line); background: #fcf9f2;
+  font-size: 0.85rem; color: var(--muted);
+}
+.notice {
+  margin: 0; padding: 10px 14px; font-size: 0.9rem;
+  background: var(--warn-soft); color: var(--warn-ink); border-bottom: 1px solid #ecd9ad;
+  display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between;
+}
+.notice[hidden] { display: none; }
+
+.outputs { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 14px; border-top: 1px solid var(--line); }
+.outputs .group { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.outputs .sep { width: 1px; align-self: stretch; background: var(--line); margin: 0 4px; }
+.status {
+  min-height: 1.5em; margin: 0; padding: 0 14px 12px;
+  font-size: 0.92rem; color: var(--ink-soft);
+}
+.status.ok { color: #175446; }
+.status.err { color: var(--err-ink); }
+
+footer { padding: 24px 0 40px; color: var(--muted); font-size: 0.88rem; }
+footer p { margin: 4px 0; max-width: 60rem; }
+footer a { color: var(--accent); font-weight: 600; text-underline-offset: 2px; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+@media (max-width: 520px) {
+  .outputs .sep { display: none; }
+  button { flex: 1 1 auto; }
+  .preview { padding: 16px; font-size: 17px; }
+}
+@media print {
+  body { background: #fff; }
+  body > *:not(main), .options, .source-panel, .panel-head, .panel-foot, .outputs, .status, .notice { display: none !important; }
+  main, .wrap, .panels, .panel { display: block; border: 0; padding: 0; margin: 0; max-width: none; background: #fff; }
+  .preview { max-height: none; overflow: visible; padding: 0; font-size: 12pt; }
+  .preview:empty::before { content: none; }
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#source">Skip to your text</a>
+<header class="top wrap">
+  <div class="brand">
+    <span class="mark" aria-hidden="true">¶</span>
+    <h1>Story to Rich Text</h1>
+  </div>
+  <p class="tagline">Paste a story that mixes plain typing with HTML like <code>&lt;b&gt;</code>, <code>&lt;i&gt;</code> or <code>&lt;center&gt;</code>. Your line breaks and paragraphs are kept, the HTML becomes real formatting, and you can copy or download the result.</p>
+  <p class="privacy"><span class="dot" aria-hidden="true"></span><span>Your writing stays in this tab. No uploads, accounts or AI processing. Copy or download your result before closing.</span></p>
+</header>
+
+<main class="wrap">
+  <div class="options" id="options" role="group" aria-label="Conversion options">
+    <fieldset class="field">
+      <legend>HTML handling</legend>
+      <label for="htmlMode">HTML in your text</label>
+      <select id="htmlMode">
+        <option value="html" selected>Format HTML tags</option>
+        <option value="escaped">Also format escaped tags (&amp;lt;b&amp;gt;)</option>
+        <option value="text">Show tags as plain text</option>
+      </select>
+    </fieldset>
+    <div class="field">
+      <label for="lineBreaks">Single line breaks</label>
+      <select id="lineBreaks">
+        <option value="keep" selected>Keep every line break</option>
+        <option value="join">Join wrapped lines into one paragraph</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="spacing">Paragraph style</label>
+      <select id="spacing">
+        <option value="spaced" selected>Space between paragraphs</option>
+        <option value="indented">Indented first lines (book style)</option>
+        <option value="compact">No extra space</option>
+      </select>
+    </div>
+    <div class="check">
+      <input type="checkbox" id="keepExtra">
+      <label for="keepExtra">Keep extra blank lines (scene breaks)</label>
+    </div>
+  </div>
+
+  <div class="panels">
+    <section class="panel source-panel" aria-labelledby="sourceLabel">
+      <div class="panel-head">
+        <div>
+          <label class="h2" id="sourceLabel" for="source">Your story</label>
+          <p class="hint" id="sourceHint">A blank line starts a new paragraph. A single Enter is a line break.</p>
+        </div>
+        <div class="row">
+          <button type="button" id="exampleBtn" class="quiet">Try an example</button>
+          <button type="button" id="clearBtn" class="quiet">Clear</button>
+        </div>
+      </div>
+      <p class="notice" id="escapedNotice" hidden>
+        <span>Your text contains escaped tags like <code>&amp;lt;b&amp;gt;</code>.</span>
+        <button type="button" id="escapedBtn">Format escaped tags</button>
+      </p>
+      <textarea id="source" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off"
+        writingsuggestions="false" data-gramm="false" data-gramm_editor="false" data-enable-grammarly="false"
+        aria-describedby="sourceHint"
+        placeholder="Type or paste your story here…"></textarea>
+      <div class="panel-foot"><span id="sourceCount">0 characters</span><span>Not saved. Lives only in this tab.</span></div>
+    </section>
+
+    <section class="panel" aria-labelledby="previewLabel">
+      <div class="panel-head">
+        <div>
+          <h2 id="previewLabel">Rich text preview</h2>
+          <p class="hint">Updates as you type. Copy it into Word, Google Docs or your editor.</p>
+        </div>
+      </div>
+      <div class="preview sp-spaced" id="preview" role="region" aria-labelledby="previewLabel" tabindex="0"></div>
+      <div class="outputs" role="group" aria-label="Copy and download">
+        <div class="group">
+          <button type="button" id="copyRichBtn" class="primary">Copy rich text</button>
+          <button type="button" id="copyPlainBtn">Copy plain text</button>
+          <button type="button" id="selectBtn">Select preview</button>
+        </div>
+        <span class="sep" aria-hidden="true"></span>
+        <div class="group" role="group" aria-label="Download">
+          <button type="button" id="rtfBtn">Download .rtf</button>
+          <button type="button" id="htmlBtn">.html</button>
+          <button type="button" id="txtBtn">.txt</button>
+          <button type="button" id="printBtn" class="quiet">Print / PDF</button>
+        </div>
+      </div>
+      <p class="status" id="status" role="status" aria-live="polite"></p>
+      <div class="panel-foot"><span id="previewCount">0 paragraphs · 0 words</span></div>
+    </section>
+  </div>
+</main>
+
+<footer class="wrap">
+  <p><a class="save" id="saveTool" href="index.html" download="story-to-rich-text.html">Save this tool for offline use</a>. The saved copy is the blank tool, never your text, and works without internet.</p>
+  <p>This page can’t send your writing anywhere. Links are kept only if they start with http:// or https://. Pictures, scripts and forms in pasted HTML are removed.</p>
+</footer>
+<noscript><p class="wrap">Story to Rich Text needs JavaScript. It runs only on your device.</p></noscript>
+
+<script>
+(() => {
+  'use strict';
+
+  // ---------- Conversion: untrusted text/HTML -> clean block model ----------
+
+  const XHTML = 'http://www.w3.org/1999/xhtml';
+  const words = (s) => new Set(s.split(/\s+/).filter(Boolean));
+
+  // Elements dropped together with everything inside them.
+  const DROP = words(`script style iframe frame frameset object embed applet svg math form input button
+    select option optgroup textarea datalist output keygen audio video source track picture img image
+    canvas map area meta link base template noscript noembed noframes head title xmp plaintext dialog
+    portal slot param fencedframe`);
+  // Inline formatting we understand, mapped to the tag we emit.
+  const MARK_TAGS = {
+    b: 'strong', strong: 'strong', i: 'em', em: 'em', cite: 'em', dfn: 'em', var: 'em',
+    u: 'u', ins: 'u', s: 's', strike: 's', del: 's', sub: 'sub', sup: 'sup',
+    code: 'code', kbd: 'code', samp: 'code', tt: 'code'
+  };
+  const HEADINGS = words('h1 h2 h3 h4 h5 h6');
+  const LISTS = words('ul ol menu dir');
+  const CONTAINERS = words(`p div section article main header footer aside nav figure figcaption address
+    details summary center hgroup fieldset legend table thead tbody tfoot tr td th caption dl dt dd
+    search li body html`);
+  const ALIGN_ATTR_TAGS = words('p div center h1 h2 h3 h4 h5 h6 td th li blockquote');
+  const isBlockTag = (t) => CONTAINERS.has(t) || LISTS.has(t) || HEADINGS.has(t) ||
+    t === 'blockquote' || t === 'pre' || t === 'listing';
+
+  let markSeq = 0;
+
+  function parseStyle(str) {
+    const map = new Map();
+    if (!str) return map;
+    for (const decl of String(str).split(';')) {
+      const i = decl.indexOf(':');
+      if (i < 0) continue;
+      const prop = decl.slice(0, i).trim().toLowerCase();
+      const value = decl.slice(i + 1).replace(/!\s*important/i, '').trim().toLowerCase();
+      if (prop && value) map.set(prop, value);
+    }
+    return map;
+  }
+
+  function normAlign(v) {
+    v = String(v || '').replace(/!\s*important/i, '').trim().toLowerCase();
+    if (v === 'start') return 'left';
+    if (v === 'end') return 'right';
+    return /^(left|right|center|justify)$/.test(v) ? v : null;
+  }
+
+  function alignOf(el, tag) {
+    let a = tag === 'center' ? 'center' : null;
+    if (ALIGN_ATTR_TAGS.has(tag) && el.hasAttribute('align')) a = normAlign(el.getAttribute('align')) || a;
+    const st = parseStyle(el.getAttribute('style'));
+    if (st.has('text-align')) a = normAlign(st.get('text-align')) || a;
+    return a;
+  }
+
+  function safeHref(raw) {
+    if (raw == null) return null;
+    const s = String(raw).trim().replace(/[\t\n\r]/g, '');
+    if (!/^https?:\/\//i.test(s)) return null;
+    try {
+      const u = new URL(s);
+      if ((u.protocol !== 'http:' && u.protocol !== 'https:') || !u.hostname) return null;
+      if (u.username || u.password) return null;
+      return u.href;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function addMark(marks, mark) {
+    if (marks.some((m) => m.tag === mark.tag)) return marks;
+    return marks.concat([Object.assign({ id: ++markSeq }, mark)]);
+  }
+
+  function addStyleMarks(marks, el) {
+    const st = parseStyle(el.getAttribute('style'));
+    if (!st.size) return marks;
+    const fw = st.get('font-weight');
+    if (fw && /^(bold|bolder|[6-9]00)$/.test(fw)) marks = addMark(marks, { tag: 'strong' });
+    const fs = st.get('font-style');
+    if (fs && /^(italic|oblique)/.test(fs)) marks = addMark(marks, { tag: 'em' });
+    const td = (st.get('text-decoration') || '') + ' ' + (st.get('text-decoration-line') || '');
+    if (/\bunderline\b/.test(td)) marks = addMark(marks, { tag: 'u' });
+    if (/\bline-through\b/.test(td)) marks = addMark(marks, { tag: 's' });
+    const va = st.get('vertical-align');
+    if (va === 'sub') marks = addMark(marks, { tag: 'sub' });
+    if (va === 'super') marks = addMark(marks, { tag: 'sup' });
+    return marks;
+  }
+
+  // Decode only the entities that spell out markup, in a single pass, so
+  // "&amp;lt;" becomes the literal text "&lt;" rather than a tag.
+  function decodeEscapedTags(s) {
+    const map = { lt: '<', gt: '>', quot: '"', apos: "'", amp: '&', '#60': '<', '#62': '>', '#34': '"',
+      '#39': "'", '#38': '&', '#x3c': '<', '#x3e': '>', '#x22': '"', '#x27': "'", '#x26': '&' };
+    return s.replace(/&(lt|gt|quot|apos|amp|#60|#62|#34|#39|#38|#x3c|#x3e|#x22|#x27|#x26);/gi,
+      (m, name) => map[name.toLowerCase()]);
+  }
+
+  // Text of a <pre>, skipping anything we would drop.
+  function textOf(node) {
+    let out = '';
+    for (const c of node.childNodes) {
+      if (c.nodeType === 3) out += c.data;
+      else if (c.nodeType === 1 && c.namespaceURI === XHTML && !DROP.has(c.localName)) {
+        out += c.localName === 'br' ? '\n' : textOf(c);
+      }
+    }
+    return out;
+  }
+
+  function walk(node, ctx, marks, sink) {
+    for (const child of node.childNodes) {
+      if (child.nodeType === 3) { sink.inline({ kind: 'text', text: child.data, marks }); continue; }
+      if (child.nodeType !== 1 || child.namespaceURI !== XHTML) continue;
+      const tag = child.localName;
+      if (DROP.has(tag) || tag === 'wbr') continue;
+      if (tag === 'br') { sink.inline({ kind: 'br', marks }); continue; }
+      if (tag === 'hr') { sink.block([{ type: 'hr' }]); continue; }
+      if (isBlockTag(tag)) { sink.block(convertBlock(child, tag, ctx, marks)); continue; }
+      let next = marks;
+      if (MARK_TAGS[tag]) next = addMark(next, { tag: MARK_TAGS[tag] });
+      if (tag === 'a') {
+        const href = safeHref(child.getAttribute('href'));
+        if (href) next = addMark(next, { tag: 'a', href });
+      }
+      next = addStyleMarks(next, child);
+      walk(child, ctx, next, sink); // unknown inline elements are unwrapped
+    }
+  }
+
+  function convertContainer(node, ctx, marks) {
+    const blocks = [];
+    let run = [];
+    const flush = () => {
+      if (run.length) blocks.push(...paragraphsFromRun(run, ctx));
+      run = [];
+    };
+    walk(node, ctx, marks, {
+      inline: (t) => run.push(t),
+      block: (bs) => { flush(); blocks.push(...bs); }
+    });
+    flush();
+    return blocks;
+  }
+
+  function isBlankLineBlock(el, tag) {
+    if (tag !== 'p' && tag !== 'div') return false;
+    const t = el.textContent;
+    return t.replace(/[\u00a0\s]/g, '') === '' && (/\u00a0/.test(t) || !!el.querySelector('br'));
+  }
+
+  function convertBlock(el, tag, ctx, marks) {
+    const align = alignOf(el, tag) || ctx.align;
+    const sub = Object.assign({}, ctx, { align });
+    if (HEADINGS.has(tag)) {
+      const inlines = [];
+      for (const b of convertContainer(el, sub, marks)) {
+        if (!b.inlines) continue;
+        if (inlines.length) inlines.push({ type: 'br' });
+        inlines.push(...b.inlines);
+      }
+      return inlines.length ? [{ type: 'h', level: +tag[1], align, inlines }] : [];
+    }
+    if (tag === 'blockquote') {
+      const blocks = convertContainer(el, sub, marks);
+      return blocks.length ? [{ type: 'quote', blocks }] : [];
+    }
+    if (LISTS.has(tag)) return convertList(el, tag === 'ol', sub, marks);
+    if (tag === 'pre' || tag === 'listing') {
+      const text = textOf(el).replace(/^\n/, '').replace(/\s+$/, '');
+      return text ? [{ type: 'pre', text }] : [];
+    }
+    const blocks = convertContainer(el, sub, marks);
+    if (!blocks.length && ctx.opts.keepExtra && isBlankLineBlock(el, tag)) return [{ type: 'spacer' }];
+    return blocks;
+  }
+
+  function convertList(el, ordered, ctx, marks) {
+    const items = [];
+    let start = null;
+    if (ordered && el.hasAttribute('start')) {
+      const s = el.getAttribute('start').trim();
+      if (/^-?\d{1,6}$/.test(s)) start = parseInt(s, 10);
+    }
+    for (const child of el.childNodes) {
+      if (child.nodeType === 3 && !/\S/.test(child.data)) continue;
+      if (child.nodeType !== 1 && child.nodeType !== 3) continue;
+      let blocks;
+      if (child.nodeType === 1 && child.namespaceURI === XHTML && child.localName === 'li') {
+        blocks = convertContainer(child, Object.assign({}, ctx, { align: alignOf(child, 'li') || ctx.align }), marks);
+      } else {
+        blocks = convertContainer({ childNodes: [child] }, ctx, marks);
+      }
+      if (blocks.length) items.push({ blocks });
+    }
+    return items.length ? [{ type: 'list', ordered, start, items }] : [];
+  }
+
+  function commonMarks(a, b) {
+    const out = [];
+    for (let i = 0; i < a.length && i < b.length && a[i] === b[i]; i++) out.push(a[i]);
+    return out;
+  }
+
+  const HSPACE = /^[ \t\f\v]*$/;
+  const MAX_SPACERS = 50;
+
+  // A run is consecutive inline content between blocks. Typed newlines become
+  // <br> (single) or paragraph breaks (blank line); whitespace-only gaps at the
+  // edges, such as indentation between existing block tags, disappear.
+  function paragraphsFromRun(run, ctx) {
+    const atoms = [];
+    for (const t of run) {
+      if (t.kind === 'br') { atoms.push({ k: 'br', marks: t.marks }); continue; }
+      t.text.replace(/\r\n?/g, '\n').split('\n').forEach((part, i) => {
+        if (i) atoms.push({ k: 'nl' });
+        if (part) atoms.push({ k: 'text', text: part, marks: t.marks });
+      });
+    }
+    const isWs = (a) => a.k === 'text' && HSPACE.test(a.text);
+    const out = [];
+    let cur = [];
+    let lastMarks = [];
+    const pushPara = () => {
+      const inlines = finishParagraph(cur);
+      if (inlines) out.push({ type: 'p', align: ctx.align, inlines });
+      cur = [];
+    };
+    let i = 0;
+    while (i < atoms.length) {
+      const a = atoms[i];
+      if (a.k === 'text') {
+        cur.push(a);
+        if (!isWs(a)) lastMarks = a.marks;
+        i++;
+        continue;
+      }
+      let j = i, n = 0, b = 0;
+      while (j < atoms.length && (atoms[j].k !== 'text' || isWs(atoms[j]))) {
+        if (atoms[j].k === 'nl') n++; else if (atoms[j].k === 'br') b++;
+        j++;
+      }
+      const atStart = !cur.some((x) => x.k === 'text' && !isWs(x));
+      const atEnd = j >= atoms.length;
+      if (!atStart && !atEnd) {
+        const marks = commonMarks(lastMarks, atoms[j].marks);
+        if (n >= 2) {
+          pushPara();
+          // Each blank line beyond the first becomes a spacer (capped only to
+          // keep a stray paste of thousands of newlines reasonable).
+          if (ctx.opts.keepExtra) for (let x = 0; x < Math.min(n - 2, MAX_SPACERS); x++) out.push({ type: 'spacer' });
+        } else if (ctx.opts.lineBreaks === 'join' && b === 0) {
+          cur.push({ k: 'text', text: ' ', marks });
+        } else {
+          const count = ctx.opts.lineBreaks === 'join' ? b : Math.max(b, n);
+          for (let x = 0; x < count; x++) cur.push({ k: 'br', marks });
+        }
+      }
+      i = j;
+    }
+    pushPara();
+    return out;
+  }
+
+  function rstrip(list) {
+    for (let k = list.length - 1; k >= 0; k--) {
+      if (list[k].k !== 'text') break;
+      list[k].text = list[k].text.replace(/ +$/, '');
+      if (list[k].text) break;
+      list.splice(k, 1);
+    }
+  }
+
+  function finishParagraph(cur) {
+    const list = [];
+    let afterSpace = true;
+    for (const a of cur) {
+      if (a.k === 'br') { rstrip(list); list.push(a); afterSpace = true; continue; }
+      let t = a.text.replace(/[ \t\f\v]+/g, ' ');
+      if (afterSpace) t = t.replace(/^ /, '');
+      if (!t) continue;
+      list.push({ k: 'text', text: t, marks: a.marks });
+      afterSpace = t.endsWith(' ');
+    }
+    rstrip(list);
+    while (list.length && list[list.length - 1].k === 'br') { list.pop(); rstrip(list); }
+    if (!list.some((a) => a.k === 'text')) return null;
+    return buildInlines(list);
+  }
+
+  // Rebuild nested inline elements from flat atoms carrying their mark chains.
+  function buildInlines(list) {
+    const root = { children: [] };
+    let stack = [];
+    for (const a of list) {
+      const m = a.marks;
+      let k = 0;
+      while (k < stack.length && k < m.length && stack[k].mark === m[k]) k++;
+      stack = stack.slice(0, k);
+      for (let x = k; x < m.length; x++) {
+        const parent = x ? stack[x - 1].node : root;
+        const prev = parent.children[parent.children.length - 1];
+        let node;
+        if (prev && prev.type === 'mark' && prev.tag === m[x].tag && prev.href === m[x].href) node = prev;
+        else {
+          node = { type: 'mark', tag: m[x].tag, href: m[x].href, children: [] };
+          parent.children.push(node);
+        }
+        stack.push({ mark: m[x], node });
+      }
+      const parent = stack.length ? stack[stack.length - 1].node : root;
+      if (a.k === 'br') parent.children.push({ type: 'br' });
+      else {
+        const last = parent.children[parent.children.length - 1];
+        if (last && last.type === 'text') last.text += a.text;
+        else parent.children.push({ type: 'text', text: a.text });
+      }
+    }
+    return root.children;
+  }
+
+  const DEFAULTS = { htmlMode: 'html', lineBreaks: 'keep', keepExtra: false };
+
+  function convert(input, options) {
+    const opts = Object.assign({}, DEFAULTS, options || {});
+    let source = String(input == null ? '' : input).replace(/\r\n?/g, '\n');
+    let root;
+    if (opts.htmlMode === 'text') {
+      root = document.createDocumentFragment();
+      root.append(document.createTextNode(source));
+    } else {
+      if (opts.htmlMode === 'escaped') source = decodeEscapedTags(source);
+      // Template contents live in an inert document: nothing runs or loads.
+      // We only read from it and build fresh, allowlisted output.
+      const tpl = document.createElement('template');
+      tpl.innerHTML = source;
+      root = tpl.content;
+    }
+    return convertContainer(root, { align: null, opts }, []);
+  }
+
+  // ---------- Renderers ----------
+
+  const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const isLooseItem = (item) => !(item.blocks.length === 1 && item.blocks[0].type === 'p' && !item.blocks[0].align);
+
+  function inlineText(inlines) {
+    let s = '';
+    for (const n of inlines) {
+      if (n.type === 'text') s += n.text;
+      else if (n.type === 'br') s += '\n';
+      else s += inlineText(n.children);
+    }
+    return s;
+  }
+
+  // Preview DOM: built node by node with classes only, never from a markup string.
+  function renderDOM(blocks) {
+    const frag = document.createDocumentFragment();
+    const inl = (parent, nodes) => {
+      for (const n of nodes) {
+        if (n.type === 'text') parent.append(document.createTextNode(n.text));
+        else if (n.type === 'br') parent.append(document.createElement('br'));
+        else {
+          const el = document.createElement(n.tag);
+          if (n.tag === 'a') {
+            el.setAttribute('href', n.href);
+            el.setAttribute('rel', 'noopener noreferrer nofollow');
+            el.setAttribute('target', '_blank');
+          }
+          inl(el, n.children);
+          parent.append(el);
+        }
+      }
+    };
+    const blk = (parent, list) => {
+      for (const b of list) {
+        let el;
+        if (b.type === 'p' || b.type === 'h') {
+          el = document.createElement(b.type === 'p' ? 'p' : 'h' + b.level);
+          if (b.align) el.className = 'al-' + b.align;
+          inl(el, b.inlines);
+        } else if (b.type === 'spacer') {
+          el = document.createElement('p');
+          el.className = 'spacer';
+          el.append(document.createElement('br'));
+        } else if (b.type === 'quote') {
+          el = document.createElement('blockquote');
+          blk(el, b.blocks);
+        } else if (b.type === 'list') {
+          el = document.createElement(b.ordered ? 'ol' : 'ul');
+          if (b.ordered && b.start != null) el.setAttribute('start', String(b.start));
+          for (const item of b.items) {
+            const li = document.createElement('li');
+            if (isLooseItem(item)) blk(li, item.blocks); else inl(li, item.blocks[0].inlines);
+            el.append(li);
+          }
+        } else if (b.type === 'pre') {
+          el = document.createElement('pre');
+          el.textContent = b.text;
+        } else if (b.type === 'hr') {
+          el = document.createElement('hr');
+        }
+        if (el) parent.append(el);
+      }
+    };
+    blk(frag, blocks);
+    return frag;
+  }
+
+  // HTML string for the clipboard and exports, with inline styles so Word and
+  // Google Docs keep alignment and spacing.
+  function renderHTML(blocks, options) {
+    const spacing = (options && options.spacing) || 'spaced';
+    const pMargin = spacing === 'spaced' ? 'margin:0 0 1em' : 'margin:0';
+    const inl = (nodes) => nodes.map((n) => {
+      if (n.type === 'text') return esc(n.text);
+      if (n.type === 'br') return '<br>';
+      const inner = inl(n.children);
+      if (n.tag === 'a') return `<a href="${esc(n.href)}" rel="noopener noreferrer">${inner}</a>`;
+      return `<${n.tag}>${inner}</${n.tag}>`;
+    }).join('');
+    const blk = (list) => {
+      let out = '';
+      let prev = null;
+      for (const b of list) {
+        if (b.type === 'p') {
+          const st = [pMargin];
+          if (spacing === 'indented' && prev === 'p') st.push('text-indent:1.5em');
+          if (b.align) st.push('text-align:' + b.align);
+          out += `<p style="${st.join(';')}">${inl(b.inlines)}</p>\n`;
+        } else if (b.type === 'spacer') {
+          out += `<p style="${pMargin}"><br></p>\n`;
+        } else if (b.type === 'h') {
+          out += `<h${b.level}${b.align ? ` style="text-align:${b.align}"` : ''}>${inl(b.inlines)}</h${b.level}>\n`;
+        } else if (b.type === 'quote') {
+          out += `<blockquote style="margin:0 0 1em 2em">\n${blk(b.blocks)}</blockquote>\n`;
+        } else if (b.type === 'list') {
+          const t = b.ordered ? 'ol' : 'ul';
+          const start = b.ordered && b.start != null ? ` start="${b.start}"` : '';
+          out += `<${t}${start}>\n` + b.items.map((item) =>
+            `<li>${isLooseItem(item) ? '\n' + blk(item.blocks) : inl(item.blocks[0].inlines)}</li>\n`).join('') + `</${t}>\n`;
+        } else if (b.type === 'pre') {
+          out += `<pre>${esc(b.text)}</pre>\n`;
+        } else if (b.type === 'hr') {
+          out += '<hr>\n';
+        }
+        prev = b.type;
+      }
+      return out;
+    };
+    return blk(blocks);
+  }
+
+  function titleOf(blocks) {
+    const first = (list) => {
+      for (const b of list) {
+        if (b.type === 'h' || b.type === 'p') return inlineText(b.inlines);
+        if (b.type === 'quote') { const t = first(b.blocks); if (t) return t; }
+      }
+      return '';
+    };
+    const t = first(blocks).replace(/\s+/g, ' ').trim();
+    return t.length > 60 ? t.slice(0, 57).replace(/\s+\S*$/, '') + '…' : t;
+  }
+
+  function renderStandaloneHTML(blocks, options) {
+    const title = titleOf(blocks) || 'Story';
+    return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<title>${esc(title)}</title>
+<style>
+body { max-width: 40em; margin: 3em auto; padding: 0 1.25em; font: 18px/1.65 Georgia, "Times New Roman", serif; color: #1e2320; background: #fff; }
+h1, h2, h3, h4, h5, h6 { line-height: 1.25; }
+blockquote { border-left: 3px solid #ccc; padding-left: 1em; }
+pre { white-space: pre-wrap; font: 0.85em/1.5 Menlo, Consolas, monospace; }
+hr { border: 0; border-top: 1px solid #bbb; margin: 1.5em auto; width: 40%; }
+</style>
+</head>
+<body>
+<article>
+${renderHTML(blocks, options)}</article>
+</body>
+</html>
+`;
+  }
+
+  function renderPlain(blocks) {
+    const inl = (nodes) => nodes.map((n) => {
+      if (n.type === 'text') return n.text;
+      if (n.type === 'br') return '\n';
+      const inner = inl(n.children);
+      if (n.tag === 'a' && inner.trim() !== n.href && inner.trim() + '/' !== n.href) return `${inner} (${n.href})`;
+      return inner;
+    }).join('');
+    const blk = (list, indent) => {
+      const parts = [];
+      for (const b of list) {
+        if (b.type === 'p' || b.type === 'h') parts.push(inl(b.inlines).replace(/\n/g, '\n' + indent));
+        else if (b.type === 'spacer') parts.push(null);
+        else if (b.type === 'quote') parts.push(blk(b.blocks, indent));
+        else if (b.type === 'pre') parts.push(b.text);
+        else if (b.type === 'hr') parts.push('* * *');
+        else if (b.type === 'list') {
+          let n = b.start != null ? b.start : 1;
+          parts.push(b.items.map((item) => {
+            const marker = b.ordered ? `${n++}. ` : '• ';
+            const pad = indent + ' '.repeat(marker.length);
+            const body = item.blocks.map((ib) => blk([ib], pad)).join('\n');
+            return indent + marker + body.replace(/^\s+/, '');
+          }).join('\n'));
+        }
+      }
+      // Paragraphs are separated by one blank line; each spacer adds one more.
+      let out = '';
+      parts.forEach((p, i) => {
+        if (p === null) out += '\n';
+        else out += (i ? '\n\n' + indent : '') + p;
+      });
+      return out;
+    };
+    return blk(blocks, '') + '\n';
+  }
+
+  // ---------- RTF ----------
+
+  function rtfText(s) {
+    let out = '';
+    for (const ch of s) {
+      const cp = ch.codePointAt(0);
+      if (ch === '\\') out += '\\\\';
+      else if (ch === '{') out += '\\{';
+      else if (ch === '}') out += '\\}';
+      else if (ch === '\t') out += '\\tab ';
+      else if (ch === '\n') out += '\\line ';
+      else if (cp === 0xa0) out += '\\~';
+      else if (cp < 0x20) continue;
+      else if (cp < 0x80) out += ch;
+      else if (cp < 0x10000) out += `\\u${cp > 32767 ? cp - 65536 : cp}?`;
+      else {
+        const v = cp - 0x10000;
+        const hi = 0xd800 + (v >> 10), lo = 0xdc00 + (v & 0x3ff);
+        out += `\\u${hi - 65536}?\\u${lo - 65536}?`;
+      }
+    }
+    return out;
+  }
+
+  const RTF_MARK = { strong: '\\b ', em: '\\i ', u: '\\ul ', s: '\\strike ', sub: '\\sub ', sup: '\\super ', code: '\\f1 ' };
+  const RTF_ALIGN = { left: '\\ql', right: '\\qr', center: '\\qc', justify: '\\qj' };
+  const RTF_HEAD_SIZE = { 1: 36, 2: 32, 3: 28, 4: 26, 5: 24, 6: 24 };
+
+  function renderRTF(blocks, options) {
+    const spacing = (options && options.spacing) || 'spaced';
+    const sa = spacing === 'spaced' ? 240 : 0;
+    const inl = (nodes) => nodes.map((n) => {
+      if (n.type === 'text') return rtfText(n.text);
+      if (n.type === 'br') return '\\line ';
+      const inner = inl(n.children);
+      if (n.tag === 'a') {
+        return `{\\field{\\*\\fldinst{HYPERLINK "${rtfText(n.href).replace(/"/g, '%22')}"}}{\\fldrslt{\\ul\\cf1 ${inner}}}}`;
+      }
+      return `{${RTF_MARK[n.tag]}${inner}}`;
+    }).join('');
+    const pard = (indent, align, extra) =>
+      `\\pard\\plain\\f0\\fs24\\sl360\\slmult1${indent ? `\\li${indent}` : ''}${align ? RTF_ALIGN[align] : ''}${extra || ''} `;
+    const blk = (list, indent) => {
+      let out = '';
+      let prev = null;
+      for (const b of list) {
+        if (b.type === 'p') {
+          const fi = spacing === 'indented' && prev === 'p' ? '\\fi360' : '';
+          out += pard(indent, b.align, `\\sa${sa}${fi}`) + inl(b.inlines) + '\\par\n';
+        } else if (b.type === 'spacer') {
+          out += pard(indent, null, `\\sa${sa}`) + '\\par\n';
+        } else if (b.type === 'h') {
+          out += pard(indent, b.align, `\\sb240\\sa120\\keepn\\outlinelevel${b.level - 1}\\b\\fs${RTF_HEAD_SIZE[b.level]}`) +
+            inl(b.inlines) + '\\par\n';
+        } else if (b.type === 'quote') {
+          out += blk(b.blocks, indent + 720).replace(/\\pard\\plain/g, '\\pard\\plain\\ri720');
+        } else if (b.type === 'pre') {
+          out += `\\pard\\plain\\f1\\fs20${indent ? `\\li${indent}` : ''}\\sa${sa} ` + rtfText(b.text) + '\\par\n';
+        } else if (b.type === 'hr') {
+          out += `\\pard\\plain\\qc\\sa${sa}\\f0\\fs24 * * *\\par\n`;
+        } else if (b.type === 'list') {
+          let n = b.start != null ? b.start : 1;
+          const li = indent + 720;
+          for (const item of b.items) {
+            const marker = b.ordered ? `${n++}.` : '\\u8226?';
+            let first = true;
+            for (const ib of item.blocks) {
+              if (ib.type === 'p' && first) {
+                out += pard(li, ib.align, `\\fi-360\\tx${li}\\sa${spacing === 'spaced' ? 80 : 0}`) +
+                  marker + '\\tab ' + inl(ib.inlines) + '\\par\n';
+              } else if (first) {
+                out += pard(li, null, `\\fi-360\\tx${li}\\sa0`) + marker + '\\tab\\par\n' + blk([ib], li);
+              } else {
+                out += blk([ib], li);
+              }
+              first = false;
+            }
+          }
+          if (sa) out += pard(indent, null, '\\sa0\\sl120\\slmult0\\fs8') + '\\par\n';
+        }
+        prev = b.type;
+      }
+      return out;
+    };
+    const title = titleOf(blocks);
+    return '{\\rtf1\\ansi\\ansicpg1252\\deff0\\uc1\n' +
+      '{\\fonttbl{\\f0\\froman\\fcharset0 Georgia;}{\\f1\\fmodern\\fcharset0 Courier New;}}\n' +
+      '{\\colortbl;\\red29\\green107\\blue94;}\n' +
+      (title ? `{\\info{\\title ${rtfText(title)}}}\n` : '') +
+      '\\viewkind4\\widowctrl\n' +
+      blk(blocks, 0) + '}\n';
+  }
+
+  window.StoryToRichText = Object.freeze({
+    convert, renderHTML, renderStandaloneHTML, renderPlain, renderRTF, safeHref
+  });
+
+  // ---------- UI ----------
+
+  const $ = (id) => document.getElementById(id);
+  const source = $('source'), preview = $('preview'), status = $('status');
+  const htmlMode = $('htmlMode'), lineBreaks = $('lineBreaks'), spacing = $('spacing'), keepExtra = $('keepExtra');
+  const outputButtons = ['copyRichBtn', 'copyPlainBtn', 'selectBtn', 'rtfBtn', 'htmlBtn', 'txtBtn', 'printBtn'].map($);
+  const isMac = /Mac|iPhone|iPad|iPod/.test(navigator.platform || navigator.userAgent);
+  const copyKey = isMac ? '⌘C' : 'Ctrl+C';
+  const ESCAPED_TAG = /&lt;\s*\/?\s*(p|br|b|i|u|s|em|strong|center|div|span|a|h[1-6]|blockquote|ul|ol|li|sub|sup)\b[\s\S]*?&gt;/i;
+
+  const EXAMPLE = `<center><b>The Lantern Keeper</b></center>
+Mara climbed the lighthouse stairs at dusk, counting each step out loud.
+The wind pressed against the glass like a curious animal.
+
+<i>Forty-two,</i> she whispered. <i>Always forty-two.</i>
+
+Below, the harbor lights blinked awake one by one —
+first the bakery, then the boatyard, then the little café
+where Théo was surely wiping down the last table.
+
+<blockquote>“Keep the light steady,” her grandmother had said, “and the boats will find their own way.”</blockquote>
+<p style="text-align: right"><u>— from the keeper’s logbook</u></p>
+She lit the lamp. Somewhere out on the water, a bell answered, <b>clear
+and close</b>, and Mara smiled.`;
+
+  let blocks = [];
+  let timer = 0;
+
+  const options = () => ({ htmlMode: htmlMode.value, lineBreaks: lineBreaks.value, keepExtra: keepExtra.checked });
+  const renderOptions = () => ({ spacing: spacing.value });
+
+  function say(msg, tone) {
+    status.textContent = msg;
+    status.className = 'status' + (tone ? ' ' + tone : '');
+  }
+
+  function countBlocks(list) {
+    let paras = 0;
+    for (const b of list) {
+      if (b.type === 'p' || b.type === 'h') paras++;
+      else if (b.type === 'quote') paras += countBlocks(b.blocks);
+      else if (b.type === 'list') for (const it of b.items) paras += countBlocks(it.blocks);
+      else if (b.type === 'pre') paras++;
+    }
+    return paras;
+  }
+
+  // Counts only the prose: each paragraph and line break separates words, and
+  // list markers are not counted.
+  function countWords(list) {
+    let n = 0;
+    const count = (t) => { n += (t.match(/\S+/g) || []).length; };
+    for (const b of list) {
+      if (b.inlines) count(inlineText(b.inlines));
+      else if (b.type === 'pre') count(b.text);
+      else if (b.type === 'quote') n += countWords(b.blocks);
+      else if (b.type === 'list') for (const it of b.items) n += countWords(it.blocks);
+    }
+    return n;
+  }
+
+  function update() {
+    clearTimeout(timer);
+    blocks = convert(source.value, options());
+    preview.className = 'preview sp-' + spacing.value;
+    preview.replaceChildren(renderDOM(blocks));
+    const wordCount = countWords(blocks);
+    const paras = countBlocks(blocks);
+    $('previewCount').textContent = `${paras} paragraph${paras === 1 ? '' : 's'} · ${wordCount} word${wordCount === 1 ? '' : 's'}`;
+    const chars = source.value.length;
+    $('sourceCount').textContent = `${chars.toLocaleString()} character${chars === 1 ? '' : 's'}`;
+    const empty = blocks.length === 0;
+    for (const b of outputButtons) b.disabled = empty;
+    $('clearBtn').disabled = source.value.length === 0;
+    $('escapedNotice').hidden = !(htmlMode.value === 'html' && ESCAPED_TAG.test(source.value));
+  }
+
+  function schedule() {
+    clearTimeout(timer);
+    // Output actions convert synchronously, so they can be used before the
+    // debounced preview catches up.
+    if (/\S/.test(source.value)) for (const b of outputButtons) b.disabled = false;
+    timer = setTimeout(update, source.value.length > 50000 ? 250 : 60);
+  }
+
+  function selectPreview() {
+    const range = document.createRange();
+    range.selectNodeContents(preview);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+  }
+
+  // Synchronous fallback: put both formats on the clipboard from a copy event.
+  function syncCopy(data) {
+    let fired = false;
+    const onCopy = (e) => {
+      if (!e.clipboardData) return;
+      for (const type of Object.keys(data)) e.clipboardData.setData(type, data[type]);
+      e.preventDefault();
+      fired = true;
+    };
+    const active = document.activeElement;
+    const sel = window.getSelection();
+    const saved = [];
+    for (let i = 0; i < sel.rangeCount; i++) saved.push(sel.getRangeAt(i));
+    const taStart = source.selectionStart, taEnd = source.selectionEnd;
+    document.addEventListener('copy', onCopy, true);
+    let ok = false;
+    try {
+      selectPreview();
+      ok = typeof document.execCommand === 'function' && document.execCommand('copy');
+    } catch (e) {
+      ok = false;
+    } finally {
+      document.removeEventListener('copy', onCopy, true);
+      sel.removeAllRanges();
+      for (const r of saved) sel.addRange(r);
+      if (active === source) { source.focus(); source.setSelectionRange(taStart, taEnd); }
+      else if (active && active.focus) active.focus();
+    }
+    return ok && fired;
+  }
+
+  function copyFailed(err) {
+    const denied = err && (err.name === 'NotAllowedError' || err.name === 'SecurityError');
+    say((denied ? 'Your browser denied clipboard access, so nothing was copied. '
+      : 'This browser doesn’t allow copying from here, so nothing was copied. ') +
+      `Choose “Select preview”, then press ${copyKey}.`, 'err');
+    $('selectBtn').classList.add('emph');
+  }
+
+  async function copyRich() {
+    update();
+    if (!blocks.length) return;
+    const html = renderHTML(blocks, renderOptions());
+    const text = renderPlain(blocks);
+    let err = null;
+    if (navigator.clipboard && typeof navigator.clipboard.write === 'function' && typeof window.ClipboardItem === 'function') {
+      try {
+        await navigator.clipboard.write([new ClipboardItem({
+          'text/html': new Blob([html], { type: 'text/html' }),
+          'text/plain': new Blob([text], { type: 'text/plain' })
+        })]);
+        $('selectBtn').classList.remove('emph');
+        return say('Copied with formatting. Paste into Word, Google Docs or your editor.', 'ok');
+      } catch (e) {
+        err = e;
+      }
+    }
+    if (syncCopy({ 'text/html': html, 'text/plain': text })) {
+      $('selectBtn').classList.remove('emph');
+      return say('Copied with formatting. Paste into Word, Google Docs or your editor.', 'ok');
+    }
+    copyFailed(err);
+  }
+
+  async function copyPlain() {
+    update();
+    if (!blocks.length) return;
+    const text = renderPlain(blocks);
+    let err = null;
+    if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+      try {
+        await navigator.clipboard.writeText(text);
+        return say('Copied as plain text.', 'ok');
+      } catch (e) {
+        err = e;
+      }
+    }
+    if (syncCopy({ 'text/plain': text })) return say('Copied as plain text.', 'ok');
+    copyFailed(err);
+  }
+
+  function slug() {
+    const s = titleOf(blocks).toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40).replace(/-+$/, '');
+    return s || 'story';
+  }
+
+  function download(ext, mime, render) {
+    update();
+    if (!blocks.length) return;
+    const content = render();
+    const name = `${slug()}.${ext}`;
+    const url = URL.createObjectURL(new Blob([content], { type: mime }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = name;
+    document.body.append(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+    say(`${name} is ready. Check your downloads.`, 'ok');
+  }
+
+  function confirmReplace(message) {
+    return !source.value.trim() || window.confirm(message);
+  }
+
+  source.addEventListener('input', schedule);
+  for (const el of [htmlMode, lineBreaks, spacing, keepExtra]) el.addEventListener('change', update);
+
+  $('exampleBtn').addEventListener('click', () => {
+    if (!confirmReplace('Replace your text with the example? Your current text isn’t saved anywhere, so it would be lost.')) return;
+    source.value = EXAMPLE;
+    update();
+    say('Example loaded. It’s made-up text; edit it or replace it with yours.');
+    source.focus();
+  });
+  $('clearBtn').addEventListener('click', () => {
+    if (!confirmReplace('Clear your text? It isn’t saved anywhere, so it can’t be recovered.')) return;
+    source.value = '';
+    update();
+    say('Cleared.');
+    source.focus();
+  });
+  $('escapedBtn').addEventListener('click', () => {
+    htmlMode.value = 'escaped';
+    update();
+    say('Escaped tags are now formatted.');
+  });
+  $('copyRichBtn').addEventListener('click', copyRich);
+  $('copyPlainBtn').addEventListener('click', copyPlain);
+  $('selectBtn').addEventListener('click', () => {
+    update();
+    selectPreview();
+    preview.focus({ preventScroll: true });
+    say(`Preview selected. Press ${copyKey} to copy it with formatting.`);
+  });
+  $('rtfBtn').addEventListener('click', () => download('rtf', 'application/rtf', () => renderRTF(blocks, renderOptions())));
+  $('htmlBtn').addEventListener('click', () => download('html', 'text/html;charset=utf-8', () => renderStandaloneHTML(blocks, renderOptions())));
+  $('txtBtn').addEventListener('click', () => download('txt', 'text/plain;charset=utf-8', () => renderPlain(blocks)));
+  $('printBtn').addEventListener('click', () => { update(); if (blocks.length) window.print(); });
+
+  // Point the offline link at this page's own file, whatever it is named.
+  // It downloads that static file; the draft in the live page is never included.
+  if (location.protocol === 'file:' || location.protocol === 'http:' || location.protocol === 'https:') {
+    $('saveTool').href = location.href.replace(/[?#].*$/, '');
+  }
+
+  window.addEventListener('beforeunload', (e) => {
+    if (source.value.trim()) { e.preventDefault(); e.returnValue = ''; }
+  });
+
+  update();
+})();
+</script>
+</body>
+</html>
