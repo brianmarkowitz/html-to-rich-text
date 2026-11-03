@@ -46,8 +46,9 @@ or open `docs/index.html` in a browser.
   comes from the same clean model and has its own restrictive CSP.
 - The browser's spelling, autocorrect and writing suggestions are turned off
   in the source box.
-- "Save this tool for offline use" downloads this page's own static file,
-  even after the file has been renamed, never the page with your draft in it.
+- "Save this tool for offline use" downloads a blank copy captured when the
+  tool starts, before any typing. It works without another network request
+  and never includes your draft, even after the file has been renamed.
 
 ## Development
 

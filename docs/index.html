@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-CCIOODrVwn6aS2GZ1uQcYAFeCMEBOd0ZEGE9/LYEwIs='; style-src 'sha256-RnTub8OMrl2cmy9S2uSPOO7cPtvwtaK2PfYjwSKRJHo='; connect-src 'none'; img-src 'none'; font-src 'none'; media-src 'none'; object-src 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; manifest-src 'none'; form-action 'none'; base-uri 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-oXh9peBnN3fRSDUv6cS9m1O/pW7HmEMwhrqlaFFLeck='; style-src 'sha256-RnTub8OMrl2cmy9S2uSPOO7cPtvwtaK2PfYjwSKRJHo='; connect-src 'none'; img-src 'none'; font-src 'none'; media-src 'none'; object-src 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; manifest-src 'none'; form-action 'none'; base-uri 'none'">
 <meta name="referrer" content="no-referrer">
 <meta name="description" content="Turn a story with inline HTML and typed line breaks into clean rich text. Runs entirely in your browser; nothing is uploaded or saved.">
 <title>Story to Rich Text</title>
@@ -1104,8 +1104,10 @@ and close</b>, and Mara smiled.`;
   function download(ext, mime, render) {
     update();
     if (!blocks.length) return;
-    const content = render();
-    const name = `${slug()}.${ext}`;
+    saveFile(`${slug()}.${ext}`, mime, render());
+  }
+
+  function saveFile(name, mime, content) {
     const url = URL.createObjectURL(new Blob([content], { type: mime }));
     const a = document.createElement('a');
     a.href = url;
@@ -1161,6 +1163,27 @@ and close</b>, and Mara smiled.`;
   if (location.protocol === 'file:' || location.protocol === 'http:' || location.protocol === 'https:') {
     if (location.protocol === 'file:') $('saveTool').href = location.href.replace(/[?#].*$/, '');
   }
+
+  // Capture a clean tool once, before anyone can type. This immutable copy
+  // never contains a later draft and needs no network request to download.
+  const blankTool = document.documentElement.cloneNode(true);
+  for (const id of ['source', 'preview', 'status']) blankTool.querySelector('#' + id).replaceChildren();
+  const blankSource = blankTool.querySelector('#source');
+  blankSource.removeAttribute('value');
+  blankTool.querySelector('#sourceCount').textContent = '0 characters';
+  blankTool.querySelector('#previewCount').textContent = '0 paragraphs · 0 words';
+  blankTool.querySelector('#preview').className = 'preview sp-spaced';
+  blankTool.querySelector('#status').className = 'status';
+  blankTool.querySelector('#escapedNotice').hidden = true;
+  blankTool.querySelector('#saveTool').setAttribute('href', 'index.html');
+  for (const id of ['clearBtn', 'copyRichBtn', 'copyPlainBtn', 'selectBtn', 'rtfBtn', 'htmlBtn', 'txtBtn', 'printBtn']) {
+    blankTool.querySelector('#' + id).disabled = true;
+  }
+  const blankToolHTML = '<!doctype html>\n' + blankTool.outerHTML;
+  $('saveTool').addEventListener('click', (e) => {
+    e.preventDefault();
+    saveFile('story-to-rich-text.html', 'text/html;charset=utf-8', blankToolHTML);
+  });
 
   window.addEventListener('beforeunload', (e) => {
     if (source.value.trim()) { e.preventDefault(); e.returnValue = ''; }

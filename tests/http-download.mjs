@@ -1,11 +1,13 @@
-// Test the hosted offline-tool link separately from file:// conversion tests.
-// Only synthetic text is used; the HTTP server exists only for this test.
+// Verify that saving the tool uses no network and never includes a later draft.
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
-import { readFileSync } from 'node:fs';
+import { readFileSync, mkdtempSync, rmSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
+import { tmpdir } from 'node:os';
+import { pathToFileURL } from 'node:url';
+import { expectedPolicy } from '../tools/update-csp.mjs';
 const require = createRequire(import.meta.url);
 let playwright;
 try { playwright = require('playwright'); }
@@ -18,6 +20,7 @@ const server = createServer((req, res) => {
   res.end(html);
 });
 await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+const work = mkdtempSync(join(tmpdir(), 'story-tool-http-'));
 let browser;
 try {
   browser = await playwright.chromium.launch();
@@ -26,20 +29,45 @@ try {
   const origin = `http://127.0.0.1:${server.address().port}`;
   await page.goto(origin + '/');
   const draft = 'SYNTHETIC_PRIVATE_DRAFT_SENTINEL_82164';
-  await page.locator('#source').fill(draft);
-  assert.equal(await page.locator('#saveTool').getAttribute('href'), 'index.html');
+  await page.locator('#source').fill(`<center><b>${draft}</b></center>\n\nA second paragraph.`);
+  await page.locator('#preview strong').waitFor();
+  // A filename in a prior download status must not leak into the saved tool.
+  const storyPending = page.waitForEvent('download', { timeout: 10000 });
+  await page.locator('#txtBtn').click();
+  await storyPending;
+  assert.ok((await page.locator('#status').textContent()).includes('synthetic-private-draft'));
+  const requestsBefore = requests.length;
   const pending = page.waitForEvent('download', { timeout: 10000 });
   await page.locator('#saveTool').click();
   const download = await pending;
   assert.equal(download.suggestedFilename(), 'story-to-rich-text.html');
-  const downloaded = readFileSync(await download.path());
-  assert.deepEqual(downloaded, html, 'offline download must be the unchanged blank tool');
-  assert.ok(!downloaded.includes(Buffer.from(draft)), 'draft must not be embedded in the tool');
-  assert.ok(requests.some(r => r.url === '/index.html'), 'download must request the static HTML file');
-  assert.ok(requests.every(r => r.method === 'GET' && !r.url.includes(draft) && !r.url.includes('?')), 'only static GET requests, no draft upload');
-  console.log('HTTP download passed: original blank tool, no draft in file or requests.');
+  const saved = join(work, 'renamed-tool.html');
+  await download.saveAs(saved);
+  const downloaded = readFileSync(saved, 'utf8');
+  assert.ok(!downloaded.includes(draft), 'draft must not be embedded in the tool');
+  assert.ok(!downloaded.includes('synthetic-private-draft'), 'draft filename must not be embedded');
+  assert.equal(requests.length, requestsBefore, 'tool download must need no network request');
+  assert.ok(requests.every(r => r.method === 'GET' && r.url === '/'), 'only initial static page request');
+  assert.equal(downloaded.match(/<meta http-equiv="Content-Security-Policy" content="([^"]*)">/)[1], expectedPolicy(downloaded));
+  await context.setOffline(true);
+  const offline = await context.newPage();
+  await offline.goto(pathToFileURL(saved).href);
+  assert.equal(await offline.locator('#source').inputValue(), '');
+  assert.equal(await offline.locator('#preview').textContent(), '');
+  assert.equal(await offline.locator('#status').textContent(), '');
+  await offline.locator('#source').fill('Fresh <b>offline</b> story.\n\nNext paragraph.');
+  await offline.locator('#preview strong').waitFor();
+  assert.equal(await offline.locator('#preview p').count(), 2);
+  assert.equal(await offline.locator('#preview strong').textContent(), 'offline');
+  // Saving the renamed tool again remains blank and independent of its draft.
+  const againPending = offline.waitForEvent('download', { timeout: 10000 });
+  await offline.locator('#saveTool').click();
+  const again = await againPending;
+  assert.ok(!readFileSync(await again.path(), 'utf8').includes('Fresh <b>offline</b> story.'));
+  console.log('Hosted/offline tool download passed: blank copy, valid CSP, no draft or filename, no network; renamed offline copy converts and saves again.');
   await context.close();
 } finally {
   if (browser) await browser.close();
   await new Promise(resolve => server.close(resolve));
+  rmSync(work, { recursive: true, force: true });
 }

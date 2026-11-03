@@ -519,7 +519,7 @@ await test('source box turns off browser spelling, autocorrect and writing sugge
     corr: e.getAttribute('autocorrect'), cap: e.getAttribute('autocapitalize'), ws: e.getAttribute('writingsuggestions') }));
   assert.deepEqual(attrs, { spell: false, ac: 'off', corr: 'off', cap: 'off', ws: 'false' });
 });
-await test('save-for-offline link points at this static file, even when renamed, never a serialized draft', async () => {
+await test('offline tool stays blank after editing, including renamed local copies', async () => {
   const link = await page2.$eval('a.save', (a) => ({ href: a.href, dl: a.getAttribute('download'), text: a.textContent }));
   assert.deepEqual(link, { href: appUrl, dl: 'story-to-rich-text.html', text: 'Save this tool for offline use' });
   const renamed = join(work, 'my renamed copy.html');
@@ -528,7 +528,13 @@ await test('save-for-offline link points at this static file, even when renamed,
   await p.goto(pathToFileURL(renamed).href + '?draft=1#section');
   assert.equal(await p.$eval('a.save', (a) => a.href), pathToFileURL(renamed).href);
   await p.close();
-  assert.ok(!/outerHTML|XMLSerializer|documentElement\.innerHTML/.test(appSource));
+  await page2.fill('#source', 'UNPUBLISHED_STORY_93742');
+  await downloadFrom(page2, '#txtBtn');
+  const tool = await downloadFrom(page2, '#saveTool');
+  assert.equal(tool.name, 'story-to-rich-text.html');
+  assert.ok(!tool.body.includes('UNPUBLISHED_STORY_93742'));
+  assert.ok(!tool.body.includes('unpublished-story-93742'));
+  assert.match(tool.body, /<textarea\b[^>]*>\s*<\/textarea>/);
 });
 await test('form controls are labelled and the page has no horizontal scroll on a phone', async () => {
   const unlabeled = await page2.evaluate(() => [...document.querySelectorAll('select, textarea, input')]
