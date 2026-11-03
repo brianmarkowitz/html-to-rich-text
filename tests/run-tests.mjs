@@ -722,7 +722,7 @@ console.log('Site visits counter');
 const PROD_ORIGIN = 'https://brianmarkowitz.github.io';
 const PROD_URL = PROD_ORIGIN + '/story-to-rich-text/';
 const COUNTER_SRC = COUNTER_IMAGE + '?label=Site%20visits&color=226247&labelColor=173a2d';
-const COUNTER_STATS = 'https://hits.sh/brianmarkowitz.github.io/story-to-rich-text/';
+const COUNTER_STATS = 'https://hits.sh/brianmarkowitz.github.io/story-to-rich-text/visits-20261103-r1/';
 const badgeSVG = (count, width) => `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="20" role="img" aria-label="Site visits: ${count}"><rect width="${width}" height="20" rx="3" fill="#173a2d"/><text x="6" y="14" fill="#fff" font-size="11" font-family="Verdana">Site visits ${count}</text></svg>`;
 
 // A fresh online context where every request is recorded and answered locally.

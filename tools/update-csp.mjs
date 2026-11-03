@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 const file = fileURLToPath(new URL('../docs/index.html', import.meta.url));
 
 // The only remote resource: the shared site-visits badge, by exact path.
-export const COUNTER_IMAGE = 'https://hits.sh/brianmarkowitz.github.io/story-to-rich-text.svg';
+export const COUNTER_IMAGE = 'https://hits.sh/brianmarkowitz.github.io/story-to-rich-text/visits-20261103-r1.svg';
 
 export function expectedPolicy(html) {
   // The page has one <style> in <head> and one <script> in <body>. The script
