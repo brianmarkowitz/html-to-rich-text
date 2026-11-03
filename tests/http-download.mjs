@@ -42,7 +42,7 @@ try {
   const pending = page.waitForEvent('download', { timeout: 10000 });
   await page.locator('#saveTool').click();
   const download = await pending;
-  assert.equal(download.suggestedFilename(), 'story-to-rich-text.html');
+  assert.equal(download.suggestedFilename(), 'text-unwrapped.html');
   const saved = join(work, 'renamed-tool.html');
   await download.saveAs(saved);
   const downloaded = readFileSync(saved, 'utf8');
@@ -60,7 +60,7 @@ try {
   assert.equal(await offline.locator('#htmlMode').inputValue(), 'auto');
   assert.equal(await offline.locator('#adjust').evaluate(e => e.open), false);
   assert.equal(await offline.locator('#moreSave').evaluate(e => e.open), false);
-  await offline.locator('#source').fill('Fresh <b>offline</b> story.\n\nNext paragraph.');
+  await offline.locator('#source').fill('Fresh <b>offline</b> text.\n\nNext paragraph.');
   await offline.locator('#preview strong').waitFor();
   assert.equal(await offline.locator('#preview p').count(), 2);
   assert.equal(await offline.locator('#preview strong').textContent(), 'offline');
@@ -69,7 +69,7 @@ try {
   await offline.locator('#moreSave > summary').click();
   await offline.locator('#saveTool').click();
   const again = await againPending;
-  assert.ok(!readFileSync(await again.path(), 'utf8').includes('Fresh <b>offline</b> story.'));
+  assert.ok(!readFileSync(await again.path(), 'utf8').includes('Fresh <b>offline</b> text.'));
   console.log('Hosted/offline tool download passed: blank copy, valid CSP, no draft or filename, no network; renamed offline copy converts and saves again.');
   await context.close();
 } finally {

@@ -86,7 +86,7 @@ async function reveal(p, selector) {
 // Run the converter in the page and return compact HTML (default margins removed).
 async function h(input, opts = {}, spacing = 'spaced') {
   return page.evaluate(([input, opts, spacing]) => {
-    const S = window.StoryToRichText;
+    const S = window.TextUnwrapped;
     return S.renderHTML(S.convert(input, opts), { spacing })
       .replace(/ style="margin:0 0 1em"/g, '').replace(/margin:0 0 1em;/g, '').replace(/\n/g, '');
   }, [input, opts, spacing]);
@@ -112,7 +112,7 @@ await test('five blank lines with "keep extra" become four spacers in HTML, RTF 
   assert.equal(await h(input), '<p>Before.</p><p>After.</p>');
   assert.equal(await h(input, { keepExtra: true }), '<p>Before.</p>' + '<p><br></p>'.repeat(4) + '<p>After.</p>');
   const out = await run((input) => {
-    const S = window.StoryToRichText;
+    const S = window.TextUnwrapped;
     const blocks = S.convert(input, { keepExtra: true });
     return { txt: S.renderPlain(blocks), rtf: S.renderRTF(blocks), plainOff: S.renderPlain(S.convert(input)) };
   }, input);
@@ -192,18 +192,18 @@ await test('spaces collapse, non-breaking spaces survive', async () => {
 await test('Unicode survives conversion and plain text', async () => {
   const text = 'Café — naïve “quotes” ‘é’ 😀 日本語 עברית';
   assert.equal(await h(text), `<p>${text}</p>`);
-  const plain = await run((t) => window.StoryToRichText.renderPlain(window.StoryToRichText.convert(t)), text);
+  const plain = await run((t) => window.TextUnwrapped.renderPlain(window.TextUnwrapped.convert(t)), text);
   assert.equal(plain, text + '\n');
 });
 await test('paragraph styles: indented and compact exports', async () => {
-  const out = await page.evaluate(() => window.StoryToRichText.renderHTML(window.StoryToRichText.convert('A\n\nB\n\nC'), { spacing: 'indented' }));
+  const out = await page.evaluate(() => window.TextUnwrapped.renderHTML(window.TextUnwrapped.convert('A\n\nB\n\nC'), { spacing: 'indented' }));
   assert.equal(out.replace(/\n/g, ''), '<p style="margin:0">A</p><p style="margin:0;text-indent:1.5em">B</p><p style="margin:0;text-indent:1.5em">C</p>');
-  const compact = await page.evaluate(() => window.StoryToRichText.renderHTML(window.StoryToRichText.convert('A\n\nB'), { spacing: 'compact' }));
+  const compact = await page.evaluate(() => window.TextUnwrapped.renderHTML(window.TextUnwrapped.convert('A\n\nB'), { spacing: 'compact' }));
   assert.equal(compact.replace(/\n/g, ''), '<p style="margin:0">A</p><p style="margin:0">B</p>');
 });
 await test('plain text export: paragraphs, breaks, lists and links', async () => {
   const plain = await run(() => {
-    const S = window.StoryToRichText;
+    const S = window.TextUnwrapped;
     return S.renderPlain(S.convert('<h2>T</h2>One\ntwo\n\n<ul><li>a</li><li>b</li></ul><ol start="2"><li>c</li></ol><a href="https://example.com/x">site</a>'));
   });
   assert.equal(plain, 'T\n\nOne\ntwo\n\n• a\n• b\n\n2. c\n\nsite (https://example.com/x)\n');
@@ -212,7 +212,7 @@ await test('plain text export: paragraphs, breaks, lists and links', async () =>
 
 console.log('Automatic detection');
 const automatically = (input, preferences = {}) => run(([input, preferences]) => {
-  const S = window.StoryToRichText;
+  const S = window.TextUnwrapped;
   const options = S.resolveOptions(input, preferences);
   const blocks = S.convert(input, options);
   return { options, html: S.renderHTML(blocks, options), text: S.renderPlain(blocks) };
@@ -272,7 +272,7 @@ await test('auto keeps poems, dialogue, lists, and mixed or uncertain line break
   const list = await automatically('<ul><li>one\ntwo</li></ul>\n' + wrap(prose));
   assert.equal(list.options.lineBreaks, 'keep');
 });
-await test('auto keeps scene gaps but ignores indentation between existing HTML blocks', async () => {
+await test('auto keeps section gaps but ignores indentation between existing HTML blocks', async () => {
   const input = 'Before\n\n\n\nAfter';
   assert.equal((await automatically(input)).text, input + '\n');
   assert.equal((await automatically('<p>Before</p>\n\n\n\n<p>After</p>')).text, 'Before\n\nAfter\n');
@@ -337,22 +337,22 @@ await test('malicious input in the live UI: nothing runs, loads, or leaks into t
   });
   assert.deepEqual(info.bad, []);
   assert.equal(info.pwned, undefined);
-  assert.equal(info.title, 'Story to Rich Text');
+  assert.equal(info.title, 'Text, Unwrapped');
   assert.equal(info.base, appUrl);
   assert.ok(!requests.some((u) => u.includes('evil.example')), 'request to evil.example');
 });
 await test('exported HTML is sanitized and carries its own restrictive CSP', async () => {
-  const html = await run(() => window.StoryToRichText.renderStandaloneHTML(
-    window.StoryToRichText.convert(document.getElementById('source').value)));
+  const html = await run(() => window.TextUnwrapped.renderStandaloneHTML(
+    window.TextUnwrapped.convert(document.getElementById('source').value)));
   assert.match(html, /<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'/);
   assert.equal((html.match(/<script/g) || []).length, 0);
   for (const bad of ['evil.example', 'onerror', 'onclick', 'javascript:']) assert.ok(!html.includes(bad), bad);
-  const rtf = await run(() => window.StoryToRichText.renderRTF(
-    window.StoryToRichText.convert(document.getElementById('source').value)));
+  const rtf = await run(() => window.TextUnwrapped.renderRTF(
+    window.TextUnwrapped.convert(document.getElementById('source').value)));
   assert.ok(!rtf.includes('evil.example') && !rtf.includes('pwned'));
 });
 await test('RTF escapes control characters so input cannot inject RTF', async () => {
-  const rtf = await run(() => window.StoryToRichText.renderRTF(window.StoryToRichText.convert('a {\\b injected} \\par b')));
+  const rtf = await run(() => window.TextUnwrapped.renderRTF(window.TextUnwrapped.convert('a {\\b injected} \\par b')));
   assert.ok(rtf.includes('a \\{\\\\b injected\\} \\\\par b'), rtf);
 });
 
@@ -368,7 +368,7 @@ function balanced(rtf) {
   return depth === 0;
 }
 await test('RTF: Unicode escapes incl. astral characters, paragraph and inline formatting', async () => {
-  const rtf = await run(() => window.StoryToRichText.renderRTF(window.StoryToRichText.convert(
+  const rtf = await run(() => window.TextUnwrapped.renderRTF(window.TextUnwrapped.convert(
     '<center><b>Café</b></center>\nLine one\nline <i>two</i> 😀\n\n<u>Under</u> <s>gone</s> H<sub>2</sub>O x<sup>2</sup> <a href="https://example.com/">link</a>')));
   assert.ok(rtf.startsWith('{\\rtf1\\ansi'), 'header');
   assert.ok(balanced(rtf), 'balanced braces');
@@ -383,7 +383,7 @@ await test('RTF: Unicode escapes incl. astral characters, paragraph and inline f
 const hasTextutil = platform() === 'darwin' && (() => { try { execFileSync('which', ['textutil']); return true; } catch { return false; } })();
 await test(`RTF opens in a real RTF reader${hasTextutil ? ' (macOS textutil)' : ' (skipped: textutil unavailable)'}`, async () => {
   if (!hasTextutil) return;
-  const rtf = await run(() => window.StoryToRichText.renderRTF(window.StoryToRichText.convert(
+  const rtf = await run(() => window.TextUnwrapped.renderRTF(window.TextUnwrapped.convert(
     '<center><b>Title é</b></center>\nFirst line\nsecond line 😀 日本語\n\n<i>Next</i> paragraph — done.')));
   const f = join(work, 'check.rtf');
   writeFileSync(f, rtf);
@@ -415,7 +415,7 @@ await test('example fills empty input without asking', async () => {
   await page2.click('#exampleBtn');
   page2.off('dialog', onDialog);
   assert.equal(asked, false);
-  assert.ok((await page2.inputValue('#source')).includes('The Lantern Keeper'));
+  assert.ok((await page2.inputValue('#source')).includes('Weekend notes'));
   assert.ok(await page2.$eval('#preview', (e) => e.querySelectorAll('p').length) >= 5);
   assert.equal(await page2.$eval('#preview p', (e) => e.className), 'al-center');
 });
@@ -542,20 +542,20 @@ await test('downloads real .rtf, .html and .txt files named from the title', asy
   page2.once('dialog', (d) => d.accept());
   await page2.click('#exampleBtn');
   const rtf = await downloadFrom(page2, '#rtfBtn');
-  assert.equal(rtf.name, 'the-lantern-keeper.rtf');
+  assert.equal(rtf.name, 'weekend-notes.rtf');
   assert.ok(rtf.body.startsWith('{\\rtf1') && balanced(rtf.body));
   assert.ok(rtf.body.includes('caf\\u233?') && rtf.body.includes('Th\\u233?o') && rtf.body.includes('\\qr'));
   if (hasTextutil) {
     const txt = execFileSync('textutil', ['-convert', 'txt', '-stdout', rtf.path], { encoding: 'utf8' });
-    assert.ok(txt.includes('Théo') && txt.includes('— from the keeper’s logbook'), txt);
+    assert.ok(txt.includes('Théo') && txt.includes('— a note to yourself'), txt);
   }
   const html = await downloadFrom(page2, '#htmlBtn');
-  assert.equal(html.name, 'the-lantern-keeper.html');
-  assert.ok(html.body.startsWith('<!doctype html>') && html.body.includes('<title>The Lantern Keeper</title>'));
+  assert.equal(html.name, 'weekend-notes.html');
+  assert.ok(html.body.startsWith('<!doctype html>') && html.body.includes('<title>Weekend notes</title>'));
   assert.ok(html.body.includes('<blockquote') && html.body.includes('text-align:right'));
   const txt = await downloadFrom(page2, '#txtBtn');
-  assert.equal(txt.name, 'the-lantern-keeper.txt');
-  assert.ok(txt.body.startsWith('The Lantern Keeper\n\nMara climbed the lighthouse stairs at dusk, counting each step out loud.\nThe wind'));
+  assert.equal(txt.name, 'weekend-notes.txt');
+  assert.ok(txt.body.startsWith('Weekend notes\n\nHello there,\nA little breathing room makes the day feel brighter.\n\nA few good things'));
   assert.match(await page2.textContent('#status'), /is ready/);
 });
 await test('edit then immediately export/copy uses the latest text, not a stale preview', async () => {
@@ -610,19 +610,19 @@ await test('source box turns off browser spelling, autocorrect and writing sugge
 });
 await test('offline tool stays blank after editing, including renamed local copies', async () => {
   const link = await page2.$eval('a.save', (a) => ({ href: a.href, dl: a.getAttribute('download'), text: a.textContent }));
-  assert.deepEqual(link, { href: appUrl, dl: 'story-to-rich-text.html', text: 'Save this tool for offline use' });
+  assert.deepEqual(link, { href: appUrl, dl: 'text-unwrapped.html', text: 'Save this tool for offline use' });
   const renamed = join(work, 'my renamed copy.html');
   writeFileSync(renamed, appSource);
   const p = await context.newPage();
   await p.goto(pathToFileURL(renamed).href + '?draft=1#section');
   assert.equal(await p.$eval('a.save', (a) => a.href), pathToFileURL(renamed).href);
   await p.close();
-  await page2.fill('#source', 'UNPUBLISHED_STORY_93742');
+  await page2.fill('#source', 'UNPUBLISHED_TEXT_93742');
   await downloadFrom(page2, '#txtBtn');
   const tool = await downloadFrom(page2, '#saveTool');
-  assert.equal(tool.name, 'story-to-rich-text.html');
-  assert.ok(!tool.body.includes('UNPUBLISHED_STORY_93742'));
-  assert.ok(!tool.body.includes('unpublished-story-93742'));
+  assert.equal(tool.name, 'text-unwrapped.html');
+  assert.ok(!tool.body.includes('UNPUBLISHED_TEXT_93742'));
+  assert.ok(!tool.body.includes('unpublished-text-93742'));
   assert.match(tool.body, /<textarea\b[^>]*>\s*<\/textarea>/);
 });
 await test('form controls are labelled and the page has no horizontal scroll on a phone', async () => {
@@ -646,7 +646,7 @@ await test('default UI hides technical choices and optional save formats', async
   assert.equal(await p.inputValue('#htmlMode'), 'auto');
   assert.equal(await p.inputValue('#lineBreaks'), 'auto');
   assert.equal(await p.inputValue('#keepExtra'), 'auto');
-  assert.equal(await p.textContent('#copyRichBtn'), 'Copy formatted story');
+  assert.equal(await p.textContent('#copyRichBtn'), 'Copy formatted text');
   assert.equal(await p.textContent('#rtfBtn'), 'Download document');
   await p.close();
 });
@@ -678,7 +678,7 @@ await test('settings open with the keyboard, manual choices persist, and automat
 });
 await test('copy and document actions remain in the viewport at desktop and phone sizes', async () => {
   const p = await openApp();
-  await p.fill('#source', Array(150).fill('A long story paragraph with <b>some formatting</b>.').join('\n\n'));
+  await p.fill('#source', Array(150).fill('A long text paragraph with <b>some formatting</b>.').join('\n\n'));
   await p.waitForTimeout(200);
   for (const [width, height] of [[1280,800],[1024,768],[900,600],[375,667],[390,844],[320,568],[667,375]]) {
     await p.setViewportSize({ width, height });

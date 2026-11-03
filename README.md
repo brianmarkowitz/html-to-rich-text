@@ -1,17 +1,17 @@
-# Story to Rich Text
+# Text, Unwrapped
 
-[Open the converter](https://brianmarkowitz.github.io/story-to-rich-text/).
-Paste a story, check the preview, then **Copy formatted story** or **Download document**. No HTML knowledge or setup is needed.
+[Open Text, Unwrapped](https://brianmarkowitz.github.io/story-to-rich-text/).
+Paste any text (notes, letters, posts, chapters), check the preview, then **Copy formatted text** or **Download document**. No HTML knowledge or setup is needed.
 
 ## Automatic formatting
 
 - Recognizes ordinary HTML and common escaped formatting codes, including mixed input. Formatting is rebuilt safely; it never executes pasted code.
-- Keeps blank-line paragraphs and scene breaks, even without paragraph tags.
+- Keeps blank-line paragraphs and larger section spacing, even without paragraph tags.
 - Uses conservative rules to join clearly hard-wrapped prose. Poems, dialogue, lists and uncertain line breaks are kept. The original pasted text is never rewritten.
 - Uses readable paragraph spacing. Appearance is a preference, so book-style indentation and compact spacing remain optional choices.
 - **Adjust formatting** is closed by default. Manual choices stay in effect until **Use automatic settings** restores the defaults.
 
-Copy and download controls stay at the bottom of the viewport. Long stories scroll inside the editor and preview. Phones have **Edit story** and **See preview** views instead of two tall, stacked panels. **More ways to save** contains plain-text copying, manual selection, HTML/text downloads, printing and the offline tool.
+Copy and download controls stay at the bottom of the viewport. Long text scrolls inside the editor and preview. Phones have **Edit text** and **See preview** views instead of two tall, stacked panels. **More ways to save** contains plain-text copying, manual selection, HTML/text downloads, printing and the offline tool.
 
 The document download is a real `.rtf` with Unicode and formatting support. Rich copying provides both HTML and plain text; if the browser refuses, the tool reports that and offers manual selection.
 
@@ -23,7 +23,7 @@ Untrusted HTML is read in an inert template. A new allowlisted DOM is built rath
 
 The app's Content Security Policy blocks outgoing connections and resources, and permits only its own script/style by hash. Browser spelling, autocorrect and writing suggestions are off in the source field.
 
-**Save this tool for offline use** captures a blank startup copy before typing. Saving it needs no network request and includes neither the later draft nor its filename. The saved file works after renaming and reopening offline, with automatic settings and closed menus.
+**Save this tool for offline use** captures a blank startup copy before typing. Saving it needs no network request and includes neither the later draft nor its filename. The saved file, `text-unwrapped.html`, works after renaming and reopening offline, with automatic settings and closed menus.
 
 ## Development
 
@@ -36,8 +36,8 @@ node tools/update-csp.mjs      # refresh hashes after changing inline script/sty
 node tools/update-csp.mjs --check
 ```
 
-Tests use an installed local or global Playwright with Chromium, synthetic text only, and macOS `textutil` when available to read back real RTF. Layout checks include desktop, small phones and landscape, with long stories and always-visible actions.
+Tests use an installed local or global Playwright with Chromium, synthetic text only, and macOS `textutil` when available to read back real RTF. Layout checks include desktop, small phones and landscape, with long text and always-visible actions.
 
 Automatic detection cannot know an author's intention for every line break. It keeps uncertain breaks; optional adjustments remain available. Tables flatten to paragraphs, formatting inside preformatted blocks becomes text, and custom fonts/colours/sizes are omitted. Clipboard appearance also depends on the receiving editor.
 
-The code was developed and reviewed with AI assistance. No AI processes stories when the tool is used.
+The code was developed and reviewed with AI assistance. No AI processes your text when the tool is used.

@@ -3,37 +3,43 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-b7OlOV9Q61UMma6cF1Jq++g6MckH1l8ssFRGjhDzIXQ='; style-src 'sha256-QXojucCzIAoYAx/b61/+JZUoS4qYbLYRFxlsVcdQne8='; connect-src 'none'; img-src 'none'; font-src 'none'; media-src 'none'; object-src 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; manifest-src 'none'; form-action 'none'; base-uri 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-iOZbF7diG+ToPy4RD80L6bOCdsXz3WIOtGsbCLhUu98='; style-src 'sha256-WlccU8ePrGZrrJsgG82VlagmH23OxSZF8qt4/DMb62A='; connect-src 'none'; img-src 'none'; font-src 'none'; media-src 'none'; object-src 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; manifest-src 'none'; form-action 'none'; base-uri 'none'">
 <meta name="referrer" content="no-referrer">
-<meta name="description" content="Turn a story with inline HTML and typed line breaks into clean rich text. Runs entirely in your browser; nothing is uploaded or saved.">
-<title>Story to Rich Text</title>
+<meta name="description" content="Paste any text with inline HTML and typed line breaks and get clean, formatted text to copy or download. Runs entirely in your browser; nothing is uploaded or saved.">
+<title>Text, Unwrapped</title>
 <style>
 :root {
   color-scheme: light;
-  --paper: #f6f1e7;
-  --paper-deep: #efe8da;
-  --card: #fffdf8;
-  --ink: #1e2320;
-  --ink-soft: #3f4742;
-  --muted: #646b66;
-  --line: #ddd4c3;
-  --line-strong: #c9bea9;
-  --accent: #1d6b5e;
-  --accent-hover: #155447;
-  --accent-soft: #e2eee8;
-  --warn-soft: #fbf0d9;
-  --warn-ink: #6b4a12;
+  --paper: #f7f0e1;
+  --paper-deep: #efe4cd;
+  --card: #fffaf0;
+  --ink: #173a2d;
+  --ink-soft: #33503f;
+  --muted: #586659;
+  --line: #e4d7bd;
+  --line-strong: #cbb894;
+  --accent: #12704e;
+  --accent-hover: #0c5a3e;
+  --accent-deep: #0a4430;
+  --accent-soft: #e0efe4;
+  --sage: #e5eedc;
+  --peach: #fbe5d4;
+  --sun: #f3c443;
+  --sun-soft: #fff3cf;
+  --coral: #e2694f;
   --err-ink: #8a3426;
   --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
   --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --display: ui-rounded, "SF Pro Rounded", "Arial Rounded MT Bold", "Nunito", var(--sans);
   --mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
-  --radius: 12px;
+  --radius: 16px;
+  --lift: 3px 4px 0 #173a2d14;
 }
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
 body {
   margin: 0;
-  background: var(--paper);
+  background: var(--paper) radial-gradient(#173a2d0b 1px, transparent 1.2px) 0 0 / 18px 18px;
   color: var(--ink);
   font: 16px/1.5 var(--sans);
 }
@@ -45,26 +51,38 @@ body {
 .skip:focus { left: 16px; }
 header.top { padding: 28px 0 8px; }
 .brand { display: flex; align-items: center; gap: 12px; }
+/* Folded-paper paragraph mark: a sheet with a dog-eared, sunny corner. */
 .mark {
-  display: inline-grid; place-items: center; flex: none;
-  width: 40px; height: 40px; border-radius: 50%;
-  background: var(--accent); color: #fff;
-  font: 600 22px/1 var(--serif);
+  position: relative; display: inline-grid; place-items: center; flex: none;
+  width: 40px; height: 40px; border-radius: 10px 4px 10px 10px;
+  background: var(--accent); color: var(--card);
+  font: 700 22px/1 var(--serif);
+  box-shadow: 2px 3px 0 var(--accent-deep);
 }
-h1 { margin: 0; font: 600 clamp(1.5rem, 3vw, 2rem)/1.15 var(--serif); letter-spacing: -0.01em; }
+.mark::after {
+  content: ""; position: absolute; top: 0; right: 0; width: 12px; height: 12px;
+  border-bottom-left-radius: 4px;
+  background: linear-gradient(225deg, var(--paper) 50%, var(--sun) 50%);
+}
+h1 { margin: 0; font: 700 clamp(1.5rem, 3vw, 2rem)/1.15 var(--display); letter-spacing: -0.01em; color: var(--ink); }
+.un { position: relative; z-index: 0; white-space: nowrap; }
+.un::after {
+  content: ""; position: absolute; z-index: -1; left: 2px; bottom: 0.02em;
+  width: 62%; height: 0.24em; border-radius: 4px; background: var(--sun);
+}
 .tagline { margin: 6px 0 0; color: var(--ink-soft); max-width: 46rem; }
 .privacy {
   display: flex; gap: 10px; align-items: flex-start;
   margin: 16px 0 0; padding: 12px 14px;
-  background: var(--accent-soft); border: 1px solid #c6ddd3; border-radius: var(--radius);
-  color: #1b3d35; font-size: 0.95rem; max-width: 60rem;
+  background: var(--accent-soft); border: 1px solid #c3dccb; border-radius: var(--radius);
+  color: #173a2d; font-size: 0.95rem; max-width: 60rem;
 }
-.privacy strong { color: #123229; }
-.dot { flex: none; width: 10px; height: 10px; margin-top: 6px; border-radius: 50%; background: var(--accent); }
+.dot { flex: none; width: 9px; height: 9px; margin-top: 6px; border-radius: 50%; background: var(--coral); }
 
 .settings {
   margin: 20px 0 16px;
   background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+  box-shadow: var(--lift);
 }
 .auto-summary { margin: 0; padding: 12px 16px; color: var(--ink-soft); font-size: 0.95rem; }
 details > summary {
@@ -92,25 +110,39 @@ select {
 .panel {
   display: flex; flex-direction: column; min-width: 0;
   background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
-  overflow: hidden;
+  overflow: hidden; box-shadow: var(--lift);
 }
 .panel-head {
   display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px;
-  padding: 12px 14px; border-bottom: 1px solid var(--line); background: #fcf9f2;
+  padding: 12px 14px; border-bottom: 1px solid var(--line); background: #fcf6ea;
 }
-.panel-head h2, .panel-head label.h2 { margin: 0; font: 600 1.05rem/1.2 var(--sans); color: var(--ink); }
+.source-panel .panel-head { background: var(--sage); }
+.preview-panel .panel-head { background: var(--peach); }
+.panel-head h2, .panel-head label.h2 { margin: 0; font: 700 1.05rem/1.2 var(--display); color: var(--ink); }
+.panel-head h2::before, .panel-head label.h2::before {
+  content: ""; display: inline-block; width: 7px; height: 7px; margin: 0 7px 0.12em 0;
+  border-radius: 2px; background: var(--coral); transform: rotate(45deg);
+}
 .hint { margin: 2px 0 0; font-size: 0.85rem; color: var(--muted); }
 .row { display: flex; flex-wrap: wrap; gap: 8px; }
 
 button {
   font: inherit; font-size: 0.93rem; font-weight: 600;
   min-height: 40px; padding: 8px 14px;
-  border-radius: 8px; border: 1px solid var(--line-strong);
+  border-radius: 10px; border: 1px solid var(--line-strong);
   background: var(--card); color: var(--ink); cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, background-color 0.12s ease;
 }
 button:hover:not(:disabled) { background: var(--paper-deep); }
-button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+/* Main actions feel like pressable tiles: lift on hover, sink when pressed. */
+button.primary, button.sunny { box-shadow: 0 3px 0 var(--press, var(--line-strong)); }
+button.primary:hover:not(:disabled), button.sunny:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 4px 0 var(--press, var(--line-strong)); }
+button.primary:active:not(:disabled), button.sunny:active:not(:disabled) { transform: translateY(2px); box-shadow: 0 1px 0 var(--press, var(--line-strong)); }
+button.primary { --press: var(--accent-deep); background: var(--accent); border-color: var(--accent-hover); color: #fff; }
 button.primary:hover:not(:disabled) { background: var(--accent-hover); }
+button.sunny { --press: #c99a1f; background: var(--sun-soft); border-color: #d9b146; color: var(--ink); }
+button.sunny:hover:not(:disabled) { background: #ffeaa8; }
+button:disabled { box-shadow: none; }
 button.quiet { border-color: transparent; background: transparent; color: var(--ink-soft); }
 button.quiet:hover:not(:disabled) { background: var(--paper-deep); }
 button:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -133,7 +165,7 @@ textarea::placeholder { color: #8b918c; }
   overflow-wrap: anywhere;
 }
 .preview:empty::before {
-  content: "Your formatted story will appear here as you type.";
+  content: "Your formatted text will appear here as you type.";
   color: #8b918c; font: italic 1rem/1.5 var(--serif);
 }
 .preview > :first-child { margin-top: 0; }
@@ -158,7 +190,7 @@ textarea::placeholder { color: #8b918c; }
 
 .panel-foot {
   display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px;
-  padding: 10px 14px; border-top: 1px solid var(--line); background: #fcf9f2;
+  padding: 10px 14px; border-top: 1px solid var(--line); background: #fcf6ea;
   font-size: 0.85rem; color: var(--muted);
 }
 .outputs { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border-top: 1px solid var(--line); }
@@ -170,7 +202,7 @@ details.more .group { padding: 6px 0 2px; }
   min-height: 1.5em; margin: 0; padding: 0 14px 12px;
   font-size: 0.92rem; color: var(--ink-soft);
 }
-.status.ok { color: #175446; }
+.status.ok { color: var(--accent-hover); }
 .status.err { color: var(--err-ink); }
 
 footer { padding: 24px 0 40px; color: var(--muted); font-size: 0.88rem; }
@@ -197,8 +229,8 @@ details.adjust { border-top: 0; border-left: 1px solid var(--line); flex: none; 
 details.adjust > summary { padding: 11px 12px; font-size: 0.88rem; }
 details.adjust[open] > summary { background: var(--accent-soft); }
 .options { position: absolute; z-index: 30; top: calc(100% + 5px); left: 0; right: 0; padding: 16px; max-height: min(62dvh, 490px); overflow: auto; background: var(--card); border: 1px solid var(--line-strong); border-radius: var(--radius); box-shadow: 0 10px 30px #1e232022; }
-.view-switch { display: flex; flex: none; gap: 4px; padding: 3px; border: 1px solid var(--line); border-radius: 9px; margin-bottom: 8px; background: var(--card); }
-.view-switch button { width: 50%; min-height: 36px; padding: 5px 10px; border: 0; background: transparent; }
+.view-switch { display: flex; flex: none; gap: 4px; padding: 3px; border: 1px solid var(--line); border-radius: 12px; margin-bottom: 8px; background: var(--card); box-shadow: var(--lift); }
+.view-switch button { width: 50%; min-height: 36px; padding: 5px 10px; border: 0; border-radius: 9px; background: transparent; }
 .view-switch button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent-hover); }
 .panels { flex: 1; min-height: 0; }
 .panel { min-height: 0; height: 100%; }
@@ -207,7 +239,7 @@ details.adjust[open] > summary { background: var(--accent-soft); }
 .panel-foot { padding: 6px 12px; font-size: 0.78rem; }
 textarea { min-height: 0; height: 100%; resize: none; overflow: auto; padding: 12px; }
 .preview { min-height: 0; max-height: none; padding: 16px 20px; }
-.action-bar { position: fixed; z-index: 40; left: 0; right: 0; bottom: 0; padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px)); background: var(--card); border-top: 1px solid var(--line-strong); box-shadow: 0 -3px 18px #1e23200c; }
+.action-bar { position: fixed; z-index: 40; left: 0; right: 0; bottom: 0; padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px)); background: var(--card); border-top: 1px solid var(--line-strong); box-shadow: 0 -3px 0 #f3c44333, 0 -3px 18px #173a2d0c; }
 .action-inner { max-width: 1208px; margin: 0 auto; position: relative; display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 6px 10px; }
 .actions-main { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .actions-main button { min-height: 44px; white-space: normal; }
@@ -264,6 +296,11 @@ details.more > summary { padding: 8px 4px; min-height: 40px; font-size: 0.86rem;
   .action-bar .status { position: absolute; left: 0; right: 0; bottom: calc(100% + 14px); padding: 6px; background: var(--card); }
   .action-bar .status:empty { display: none; }
 }
+@media (prefers-reduced-motion: reduce) {
+  button { transition: none; }
+  button.primary:hover:not(:disabled), button.sunny:hover:not(:disabled),
+  button.primary:active:not(:disabled), button.sunny:active:not(:disabled) { transform: none; }
+}
 @media print {
   body { display: block; height: auto; overflow: visible; padding: 0; background: #fff; }
   body > *:not(main), .settings, .view-switch, .source-panel, .panel-head, .panel-foot, .action-bar { display: none !important; }
@@ -278,15 +315,15 @@ details.more > summary { padding: 8px 4px; min-height: 40px; font-size: 0.86rem;
 <header class="top wrap">
   <div class="brand">
     <span class="mark" aria-hidden="true">¶</span>
-    <h1>Story to Rich Text</h1>
+    <h1>Text, <span class="un">Unwrapped</span></h1>
   </div>
-  <p class="tagline">Paste your story. The formatting is handled for you.</p>
+  <p class="tagline">Paste any text. The formatting is handled for you.</p>
   <p class="privacy"><span class="dot" aria-hidden="true"></span><span>Your writing stays on your device. No uploads or AI processing.</span></p>
 </header>
 
 <main class="wrap">
   <section class="settings" aria-label="Formatting">
-    <p class="auto-summary" id="autoSummary">Formatting is chosen automatically when you paste your story.</p>
+    <p class="auto-summary" id="autoSummary">Formatting is chosen automatically when you paste your text.</p>
     <details class="adjust" id="adjust">
       <summary>Adjust formatting</summary>
       <div class="options" id="options">
@@ -310,13 +347,13 @@ details.more > summary { padding: 8px 4px; min-height: 40px; font-size: 0.86rem;
           <p class="help" id="lineBreaksHelp">Keeping suits poems, dialogue and lists. Joining suits text copied with a break at the end of every line.</p>
         </div>
         <div class="field">
-          <label for="keepExtra">Extra blank lines</label>
+          <label for="keepExtra">Section spacing</label>
           <select id="keepExtra" autocomplete="off" aria-describedby="keepExtraHelp">
             <option value="auto" selected>Automatic</option>
-            <option value="keep">Keep as scene breaks</option>
+            <option value="keep">Keep extra space between sections</option>
             <option value="remove">Close up to one blank line</option>
           </select>
-          <p class="help" id="keepExtraHelp">Two or more blank lines in a row often mark a scene break. Keeping them leaves that extra space in the copy and downloads.</p>
+          <p class="help" id="keepExtraHelp">Two or more blank lines in a row often separate sections. Keeping them leaves that extra space in the copy and downloads.</p>
         </div>
         <div class="field">
           <label for="spacing">Paragraph look</label>
@@ -336,14 +373,14 @@ details.more > summary { padding: 8px 4px; min-height: 40px; font-size: 0.86rem;
   </section>
 
   <div class="view-switch" role="group" aria-label="Workspace view">
-    <button type="button" id="showSourceBtn" aria-pressed="true" aria-controls="sourcePanel">Edit story</button>
+    <button type="button" id="showSourceBtn" aria-pressed="true" aria-controls="sourcePanel">Edit text</button>
     <button type="button" id="showPreviewBtn" aria-pressed="false" aria-controls="previewPanel">See preview</button>
   </div>
   <div class="panels" id="panels" data-view="source">
     <section class="panel source-panel" id="sourcePanel" aria-labelledby="sourceLabel">
       <div class="panel-head">
         <div>
-          <label class="h2" id="sourceLabel" for="source">Your story</label>
+          <label class="h2" id="sourceLabel" for="source">Your text</label>
           <p class="hint" id="sourceHint">Paste or type. A blank line separates paragraphs.</p>
         </div>
         <div class="row">
@@ -354,14 +391,14 @@ details.more > summary { padding: 8px 4px; min-height: 40px; font-size: 0.86rem;
       <textarea id="source" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off"
         writingsuggestions="false" data-gramm="false" data-gramm_editor="false" data-enable-grammarly="false"
         aria-describedby="sourceHint"
-        placeholder="Type or paste your story here…"></textarea>
+        placeholder="Type or paste your text here…"></textarea>
       <div class="panel-foot"><span id="sourceCount">0 characters</span><span>Not saved. Lives only in this tab.</span></div>
     </section>
 
     <section class="panel preview-panel" id="previewPanel" aria-labelledby="previewLabel">
       <div class="panel-head">
         <div>
-          <h2 id="previewLabel">Readable preview</h2>
+          <h2 id="previewLabel">Ready to share</h2>
           <p class="hint">Updates as you type. This is what you’ll copy or download.</p>
         </div>
       </div>
@@ -374,8 +411,8 @@ details.more > summary { padding: 8px 4px; min-height: 40px; font-size: 0.86rem;
 <div class="action-bar" role="region" aria-label="Copy and download">
   <div class="action-inner">
     <div class="actions-main">
-      <button type="button" id="copyRichBtn" class="primary">Copy formatted story</button>
-      <button type="button" id="rtfBtn">Download document</button>
+      <button type="button" id="copyRichBtn" class="primary">Copy formatted text</button>
+      <button type="button" id="rtfBtn" class="sunny">Download document</button>
     </div>
     <p class="status" id="status" role="status" aria-live="polite"></p>
     <details class="more" id="moreSave">
@@ -389,13 +426,13 @@ details.more > summary { padding: 8px 4px; min-height: 40px; font-size: 0.86rem;
           <button type="button" id="printBtn">Print / PDF</button>
         </div>
         <p class="more-note">The document opens in Word, Pages or Google Docs. Copy or save your work before closing; drafts aren’t stored.</p>
-        <p class="more-note"><a class="save" id="saveTool" href="index.html" download="story-to-rich-text.html">Save this tool for offline use</a></p>
+        <p class="more-note"><a class="save" id="saveTool" href="index.html" download="text-unwrapped.html">Save this tool for offline use</a></p>
         <p class="more-note">Pictures, scripts and forms in pasted HTML are removed. Formatting runs only on your device.</p>
       </div>
     </details>
   </div>
 </div>
-<noscript><p class="wrap">Story to Rich Text needs JavaScript. It runs only on your device.</p></noscript>
+<noscript><p class="wrap">Text, Unwrapped needs JavaScript. It runs only on your device.</p></noscript>
 
 <script>
 (() => {
@@ -869,7 +906,7 @@ details.more > summary { padding: 8px 4px; min-height: 40px; font-size: 0.86rem;
   }
 
   function renderStandaloneHTML(blocks, options) {
-    const title = titleOf(blocks) || 'Story';
+    const title = titleOf(blocks) || 'Text';
     return `<!doctype html>
 <html lang="en">
 <head>
@@ -1082,13 +1119,13 @@ ${renderHTML(blocks, options)}</article>
     const spacing = ['spaced', 'indented', 'compact'].includes(p.spacing) ? p.spacing : 'spaced';
     const automatic = p.htmlMode === 'auto' && p.lineBreaks === 'auto' && p.keepExtra === 'auto' && spacing === 'spaced';
     const summary = !automatic ? 'Using your choices. Your original text is unchanged.' : !input.trim() ?
-      'Paste your story. Formatting is automatic.' : lineBreaks === 'join' ?
+      'Paste your text. Formatting is automatic.' : lineBreaks === 'join' ?
       'Wrapped lines joined. Paragraph breaks kept.' : htmlMode === 'escaped' ?
       'Formatting restored. Paragraph breaks kept.' : 'Automatic formatting. Paragraph breaks kept.';
     return { htmlMode, lineBreaks, keepExtra, spacing, automatic, summary };
   }
 
-  window.StoryToRichText = Object.freeze({
+  window.TextUnwrapped = Object.freeze({
     convert, renderHTML, renderStandaloneHTML, renderPlain, renderRTF, safeHref, resolveOptions
   });
 
@@ -1101,20 +1138,18 @@ ${renderHTML(blocks, options)}</article>
   const isMac = /Mac|iPhone|iPad|iPod/.test(navigator.platform || navigator.userAgent);
   const copyKey = isMac ? '⌘C' : 'Ctrl+C';
 
-  const EXAMPLE = `<center><b>The Lantern Keeper</b></center>
-Mara climbed the lighthouse stairs at dusk, counting each step out loud.
-The wind pressed against the glass like a curious animal.
+  const EXAMPLE = `<center><b>Weekend notes</b></center>
+Hello there,
+A little breathing room makes the day feel brighter.
 
-<i>Forty-two,</i> she whispered. <i>Always forty-two.</i>
+<i>A few good things to make time for:</i>
 
-Below, the harbor lights blinked awake one by one —
-first the bakery, then the boatyard, then the little café
-where Théo was surely wiping down the last table.
+<ul><li>A slow morning.</li><li>Coffee with Théo at the café.</li><li>A walk with no particular destination.</li></ul>
 
-<blockquote>“Keep the light steady,” her grandmother had said, “and the boats will find their own way.”</blockquote>
-<p style="text-align: right"><u>— from the keeper’s logbook</u></p>
-She lit the lamp. Somewhere out on the water, a bell answered, <b>clear
-and close</b>, and Mara smiled.`;
+<blockquote>“Keep it simple, and leave room for a little joy.”</blockquote>
+<p style="text-align: right"><u>— a note to yourself</u></p>
+Good plans travel <b>better
+with a little space</b> around them.`;
 
   let blocks = [];
   let timer = 0;
@@ -1273,7 +1308,7 @@ and close</b>, and Mara smiled.`;
   function slug() {
     const s = titleOf(blocks).toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
       .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40).replace(/-+$/, '');
-    return s || 'story';
+    return s || 'text';
   }
 
   function download(ext, mime, render) {
@@ -1382,7 +1417,7 @@ and close</b>, and Mara smiled.`;
   blankTool.querySelector('#previewCount').textContent = '0 paragraphs · 0 words';
   blankTool.querySelector('#preview').className = 'preview sp-spaced';
   blankTool.querySelector('#status').className = 'status';
-  blankTool.querySelector('#autoSummary').textContent = 'Paste your story. Formatting is automatic.';
+  blankTool.querySelector('#autoSummary').textContent = 'Paste your text. Formatting is automatic.';
   blankTool.querySelector('#autoBtn').disabled = true;
   for (const id of ['adjust', 'moreSave']) blankTool.querySelector('#' + id).removeAttribute('open');
   blankTool.querySelector('#saveTool').setAttribute('href', 'index.html');
@@ -1392,7 +1427,7 @@ and close</b>, and Mara smiled.`;
   const blankToolHTML = '<!doctype html>\n' + blankTool.outerHTML;
   $('saveTool').addEventListener('click', (e) => {
     e.preventDefault();
-    saveFile('story-to-rich-text.html', 'text/html;charset=utf-8', blankToolHTML);
+    saveFile('text-unwrapped.html', 'text/html;charset=utf-8', blankToolHTML);
   });
 
   window.addEventListener('beforeunload', (e) => {
